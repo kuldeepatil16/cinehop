@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineHop — Find Films in Madrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0e0e0e;
+    --paper: #f5f2ec;
+    --cream: #ede9e0;
+    --accent: #e8391d;
+    --accent-muted: #f5c4bb;
+    --gold: #c9a84c;
+    --muted: #7a756c;
+    --border: rgba(14,14,14,0.12);
+    --chain-cinesa: #1a1a2e;
+    --chain-yelmo: #8b0000;
+    --chain-kinepolis: #1b4332;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .logo-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--ink); }
+
+  .nav-lang {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.35rem 0.75rem;
+    border-radius: 2px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+  }
+
+  .nav-lang:hover { background: var(--accent); }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 5rem 2.5rem 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--muted);
+  }
+
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 10vw, 8.5rem);
+    line-height: 0.92;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    margin-bottom: 2rem;
+    max-width: 14ch;
+  }
+
+  .hero-title em {
+    font-style: normal;
+    color: var(--accent);
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 42ch;
+    line-height: 1.65;
+    margin-bottom: 3rem;
+  }
+
+  /* ── SEARCH BAR ── */
+  .search-section {
+    background: var(--ink);
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .search-section::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 120px; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(232,57,29,0.08));
+    pointer-events: none;
+  }
+
+  .search-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .search-field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245,242,236,0.45);
+  }
+
+  .search-field input, .search-field select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 3px;
+    padding: 0.65rem 0.9rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--paper);
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .search-field input::placeholder { color: rgba(245,242,236,0.3); }
+  .search-field input:focus, .search-field select:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.1);
+  }
+
+  .search-field select option { background: #1a1a1a; color: #f5f2ec; }
+
+  .search-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 0.65rem 1.75rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s;
+    white-space: nowrap;
+    align-self: flex-end;
+  }
+
+  .search-btn:hover { background: #c72d13; transform: translateY(-1px); }
+  .search-btn:active { transform: translateY(0); }
+
+  /* ── FILTER PILLS ── */
+  .filter-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 3.5rem;
+  }
+
+  .pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    padding: 0.35rem 0.85rem;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--cream);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .pill:hover { border-color: var(--ink); color: var(--ink); }
+  .pill.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .pill.vose-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.04em;
+  }
+
+  .section-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  /* ── FILM GRID ── */
+  .main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2.5rem 5rem;
+  }
+
+  .films-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+
+  .film-card {
+    background: var(--paper);
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .film-card:nth-child(1) { animation-delay: 0.05s; }
+  .film-card:nth-child(2) { animation-delay: 0.1s; }
+  .film-card:nth-child(3) { animation-delay: 0.15s; }
+  .film-card:nth-child(4) { animation-delay: 0.2s; }
+  .film-card:nth-child(5) { animation-delay: 0.25s; }
+  .film-card:nth-child(6) { animation-delay: 0.3s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .film-card:hover { background: var(--cream); }
+
+  .film-card-inner {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .film-poster {
+    width: 72px;
+    height: 104px;
+    border-radius: 2px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--cream);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .poster-placeholder {
+    width: 72px;
+    height: 104px;
+    background: var(--ink);
+    border-radius: 2px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: rgba(245,242,236,0.15);
+    letter-spacing: 0.05em;
+  }
+
+  .film-info { flex: 1; min-width: 0; }
+
+  .film-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .badge-vose { background: var(--accent); color: #fff; }
+  .badge-imax { background: var(--ink); color: var(--paper); }
+  .badge-4dx  { background: var(--gold); color: #fff; }
+  .badge-3d   { background: var(--cream); color: var(--muted); border: 1px solid var(--border); }
+  .badge-ov   { background: #e8f4e8; color: #1b4332; }
+
+  .film-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    margin-bottom: 0.35rem;
+    color: var(--ink);
+  }
+
+  .film-meta {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 300;
+    margin-bottom: 0.9rem;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .film-meta-sep { opacity: 0.35; }
+
+  .film-rating {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  /* Sessions list */
+  .sessions { display: flex; flex-direction: column; gap: 6px; }
+
+  .session-chain {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+    margin-top: 4px;
+  }
+
+  .session-chain:first-child { margin-top: 0; }
+
+  .session-times {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .time-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 4px 9px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--cream);
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .time-btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .time-btn .price {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-left: 1px;
+  }
+
+  .time-btn:hover .price { color: rgba(245,242,236,0.6); }
+
+  .time-btn.full {
+    opacity: 0.4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  /* Chain color accents on hover */
+  .film-card[data-chain="cinesa"] .time-btn:hover { background: var(--chain-cinesa); border-color: var(--chain-cinesa); }
+  .film-card[data-chain="yelmo"]  .time-btn:hover { background: var(--chain-yelmo);  border-color: var(--chain-yelmo); }
+  .film-card[data-chain="kinepolis"] .time-btn:hover { background: var(--chain-kinepolis); border-color: var(--chain-kinepolis); }
+
+  .more-sessions {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 300;
+    margin-top: 2px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ── TICKER TAPE ── */
+  .ticker-wrap {
+    background: var(--ink);
+    overflow: hidden;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+
+  .ticker-track {
+    display: flex;
+    gap: 2rem;
+    white-space: nowrap;
+    animation: ticker 28s linear infinite;
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  .ticker-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: rgba(245,242,236,0.5);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ticker-item strong { color: var(--paper); }
+  .ticker-sep { color: var(--accent); font-size: 0.5rem; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+
+  .stat {
+    padding: 1.5rem 1rem;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .stat:last-child { border-right: none; }
+
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.5rem;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    display: block;
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── MODAL / EXPANDED VIEW ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,14,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--paper);
+    max-width: 680px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 2px;
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-header {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.75rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .modal-poster {
+    width: 90px;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 2px;
+    background: var(--ink);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    color: rgba(245,242,236,0.15);
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.4rem;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.15s;
+    line-height: 1;
+  }
+
+  .modal-close:hover { color: var(--ink); }
+
+  .modal-body { padding: 1.75rem; }
+
+  .modal-chain-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-chain-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.75rem;
+  }
+
+  .chain-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chain-dot.cinesa { background: var(--chain-cinesa); }
+  .chain-dot.yelmo  { background: var(--chain-yelmo); }
+  .chain-dot.kinepolis { background: var(--chain-kinepolis); }
+
+  .modal-chain-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+  }
+
+  .modal-cinema-name {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .modal-sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .modal-time-btn {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.6rem;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.12s;
+    display: block;
+  }
+
+  .modal-time-btn:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  .modal-time-btn .t { font-family: 'DM Mono', monospace; font-size: 0.88rem; font-weight: 500; color: var(--ink); display: block; }
+  .modal-time-btn:hover .t { color: var(--paper); }
+  .modal-time-btn .p { font-size: 0.7rem; color: var(--muted); margin-top: 2px; display: block; }
+  .modal-time-btn:hover .p { color: rgba(245,242,236,0.6); }
+  .modal-time-btn .f { font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-top: 2px; }
+
+  .book-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 8px;
+    transition: color 0.15s;
+  }
+
+  .book-link:hover { color: var(--accent); }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: gap;
+    gap: 1rem;
+  }
+
+  .footer-left {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .footer-chains {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .chain-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  .chain-badge.cinesa { background: var(--chain-cinesa); color: rgba(245,242,236,0.8); }
+  .chain-badge.yelmo  { background: var(--chain-yelmo); color: rgba(245,242,236,0.8); }
+  .chain-badge.kinepolis { background: var(--chain-kinepolis); color: rgba(245,242,236,0.8); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.25rem; }
+    .nav-links { display: none; }
+    .hero { padding: 3rem 1.25rem 2rem; }
+    .main-content { padding: 0 1.25rem 4rem; }
+    .search-section { padding: 1.25rem; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(2) { border-right: none; }
+    footer { padding: 1.5rem 1.25rem; flex-direction: column; align-items: flex-start; }
+  }
+
+  /* ── TODAY INDICATOR ── */
+  .today-strip {
+    background: var(--accent);
+    color: #fff;
+    padding: 0.5rem 2.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .live-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .live-dot::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── NO RESULTS ── */
+  .no-results {
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--muted);
+    display: none;
+  }
+
+  .no-results.show { display: block; }
+
+  .no-results-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--border);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">CineHop<span class="logo-dot"></span></a>
+  <ul class="nav-links">
+    <li><a href="#">Films</a></li>
+    <li><a href="#">Cinemas</a></li>
+    <li><a href="#">VOSE Guide</a></li>
+    <li><a href="#">About</a></li>
+  </ul>
+  <button class="nav-lang" id="langBtn" onclick="toggleLang()">ES / EN</button>
+</nav>
+
+<!-- TODAY STRIP -->
+<div class="today-strip">
+  <span class="live-dot">Showtimes updated live</span>
+  <span id="todayDate"></span>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">Madrid · 3 chains · 47 cinemas</p>
+  <h1 class="hero-title">Every film. <em>Every screen.</em></h1>
+  <p class="hero-sub">Find what's playing across Cinesa, Yelmo and Kinepolis — filtered by VOSE, format, time and price. One search, no surprises.</p>
+
+  <!-- SEARCH -->
+  <div class="search-section">
+    <div class="search-field" style="flex: 2; min-width: 200px;">
+      <label>Film or cinema</label>
+      <input type="text" id="searchInput" placeholder="e.g. Mission Impossible, Yelmo Ideal..." oninput="filterFilms()">
+    </div>
+    <div class="search-field">
+      <label>When</label>
+      <select id="dateFilter" onchange="filterFilms()">
+        <option value="today">Today</option>
+        <option value="tomorrow">Tomorrow</option>
+        <option value="weekend">This weekend</option>
+        <option value="week">This week</option>
+      </select>
+    </div>
+    <div class="search-field">
+      <label>Zone</label>
+      <select id="zoneFilter" onchange="filterFilms()">
+        <option value="all">All Madrid</option>
+        <option value="centro">Centro</option>
+        <option value="norte">Norte</option>
+        <option value="sur">Sur</option>
+        <option value="este">Este</option>
+        <option value="oeste">Oeste</option>
+      </select>
+    </div>
+    <button class="search-btn" onclick="filterFilms()">Find →</button>
+  </div>
+
+  <!-- FILTER PILLS -->
+  <div class="filter-row" id="filterRow">
+    <span class="pill vose-pill" onclick="togglePill(this, 'vose')" data-filter="vose">VOSE</span>
+    <span class="pill" onclick="togglePill(this, 'vo')" data-filter="vo">VO</span>
+    <span class="pill" onclick="togglePill(this, 'imax')" data-filter="imax">IMAX</span>
+    <span class="pill" onclick="togglePill(this, '4dx')" data-filter="4dx">4DX</span>
+    <span class="pill" onclick="togglePill(this, '3d')" data-filter="3d">3D</span>
+    <span class="pill" onclick="togglePill(this, 'cinesa')" data-filter="cinesa">Cinesa</span>
+    <span class="pill" onclick="togglePill(this, 'yelmo')" data-filter="yelmo">Yelmo</span>
+    <span class="pill" onclick="togglePill(this, 'kinepolis')" data-filter="kinepolis">Kinepolis</span>
+    <span class="pill" onclick="togglePill(this, 'tonight')" data-filter="tonight">Tonight only</span>
+    <span class="pill" onclick="togglePill(this, 'price')" data-filter="price">Under €9</span>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="ticker"></div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat">
+    <span class="stat-num" id="statFilms">18</span>
+    <span class="stat-label">Films today</span>
+  </div>
+  <div class="stat">
+    <span class="stat-num" id="statSessions">142</span>
+    <span class="stat-label">Sessions</span>
+  </div>
+  <div class="stat">
+    <span class="stat-num" id="statVose">34</span>
+    <span class="stat-label">VOSE sessions</span>
+  </div>
+  <div class="stat">
+    <span class="stat-num">3</span>
+    <span class="stat-label">Chains covered</span>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<main class="main-content">
+  <div class="section-header">
+    <span class="section-title" id="sectionTitle">Now Showing</span>
+    <span class="section-count" id="sectionCount">18 films · 142 sessions</span>
+  </div>
+
+  <div class="films-grid" id="filmsGrid"></div>
+  <div class="no-results" id="noResults">
+    <span class="no-results-title">No films found</span>
+    <p>Try adjusting your filters or search.</p>
+  </div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-poster" id="modalPoster">FILM</div>
+      <div style="flex:1; min-width:0;">
+        <div class="film-badges" id="modalBadges"></div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="film-meta" id="modalMeta"></div>
+        <div style="font-size:0.82rem; color:var(--muted); line-height:1.55;" id="modalDesc"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    CineHop Madrid · Data refreshed every 2h · Not affiliated with any cinema chain
+  </div>
+  <div class="footer-chains">
+    <span class="chain-badge cinesa">Cinesa</span>
+    <span class="chain-badge yelmo">Yelmo</span>
+    <span class="chain-badge kinepolis">Kinepolis</span>
+  </div>
+</footer>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const FILMS = [
+  {
+    id: 1,
+    title: "Dune: Messiah",
+    genre: "Sci-Fi · Adventure",
+    runtime: "165 min",
+    rating: "★ 8.4",
+    desc: "Paul Atreides faces the consequences of his rise to power on Arrakis as new forces threaten to destabilize the empire.",
+    formats: ["imax", "4dx", "3d", "vose"],
+    sessions: [
+      { chain: "cinesa", cinema: "Cinesa La Gavia", times: [
+        { t: "17:00", p: "€11.90", f: "IMAX", url: "#" },
+        { t: "19:15", p: "€9.90",  f: "VOSE", url: "#" },
+        { t: "21:30", p: "€9.90",  f: "VOSE", url: "#" },
+      ]},
+      { chain: "yelmo", cinema: "Yelmo Plenilunio", times: [
+        { t: "17:30", p: "€12.50", f: "IMAX", url: "#" },
+        { t: "20:00", p: "€10.90", f: "4DX",  url: "#" },
+        { t: "22:45", p: "€9.90",  f: "VOSE", url: "#" },
+      ]},
+      { chain: "kinepolis", cinema: "Kinepolis Madrid", times: [
+        { t: "16:45", p: "€9.50",  f: "VOSE", url: "#" },
+        { t: "19:00", p: "€11.50", f: "IMAX", url: "#" },
+        { t: "21:15", p: "€9.50",  f: "VOSE", url: "#" },
+      ]},
+    ]
+  },
+  {
+    id: 2,
+    title: "The Brutalist",
+    genre: "Drama · History",
+    runtime: "215 min",
+    rating: "★ 8.7",
+    desc: "An epic portrayal of a Hungarian-Jewish architect who escapes post-war Europe and tries to rebuild his life in America.",
+    formats: ["vose"],
+    sessions: [
+      { chain: "cinesa", cinema: "Cinesa Proyecciones", times: [
+        { t: "16:00", p: "€9.90",  f: "VOSE", url: "#" },
+        { t: "20:30", p: "€9.90",  f: "VOSE", url: "#" },
+      ]},
+      { chain: "yelmo", cinema: "Yelmo Ideal", times: [
+        { t: "17:00", p: "€9.50",  f: "VOSE", url: "#" },
+        { t: "21:00", p: "€9.50",  f: "VOSE", url: "#" },
+      ]},
+    ]
+  },
+  {
+    id: 3,
+    title: "Gladiator II",
+    genre: "Action · Epic",
+    runtime: "148 min",
+    rating: "★ 7.2",
+    desc: "Lucius, the son of Lucilla, returns to fight in the Colosseum while plotting against the corrupt emperors of Rome.",
+    formats: ["imax", "3d", "vose"],
+    sessions: [
+      { chain: "cinesa", cinema: "Cinesa Manoteras", times: [
+        { t: "17:45", p: "€10.90", f: "IMAX", url: "#" },
+        { t: "20:15", p: "€9.50",  f: "3D",   url: "#" },
+        { t: "22:30", p: "€9.50",  f: "VOSE", url: "#" },
+      ]},
+      { chain: "kinepolis", cinema: "Kinepolis Madrid", times: [
+        { t: "18:00", p: "€9.50",  f: "VOSE", url: "#" },
+        { t: "20:30", p: "€10.90", f: "IMAX", url: "#" },
+      ]},
+    ]
+  },
+  {
+    id: 4,
+    title: "Emilia Pérez",
+    genre: "Musical · Crime",
+    runtime: "130 min",
+    rating: "★ 7.8",
+    desc: "A Mexican cartel boss enlists a lawyer to help fake his death so he can fulfil his dream of transitioning into a woman.",
+    formats: ["vose", "vo"],
+    sessions: [
+      { chain: "yelmo", cinema: "Yelmo Ideal", times: [
+        { t: "16:30", p: "€8.90",  f: "VOSE", url: "#" },
+        { t: "19:00", p: "€8.90",  f: "VOSE", url: "#" },
+        { t: "21:15", p: "€8.90",  f: "VO",   url: "#" },
+      ]},
+      { chain: "cinesa", cinema: "Cinesa Proyecciones", times: [
+        { t: "18:15", p: "€9.90",  f: "VOSE", url: "#" },
+        { t: "20:45", p: "€9.90",  f: "VOSE", url: "#" },
+      ]},
+    ]
+  },
+  {
+    id: 5,
+    title: "Conclave",
+    genre: "Thriller · Drama",
+    runtime: "120 min",
+    rating: "★ 7.4",
+    desc: "One of the world's most secretive and ancient events unfolds as a group of powerful cardinals gather to elect a new Pope.",
+    formats: ["vose"],
+    sessions: [
+      { chain: "kinepolis", cinema: "Kinepolis Madrid", times: [
+        { t: "17:30", p: "€9.50",  f: "VOSE", url: "#" },
+        { t: "19:45", p: "€9.50",  f: "VOSE", url: "#" },
+        { t: "22:00", p: "€9.50",  f: "VOSE", url: "#" },
+      ]},
+      { chain: "cinesa", cinema: "Cinesa Méndez Álvaro", times: [
+        { t: "18:00", p: "€9.90",  f: "VOSE", url: "#" },
+        { t: "20:30", p: "€9.90",  f: "VOSE", url: "#" },
+      ]},
+    ]
+  },
+  {
+    id: 6,
+    title: "Paddington in Peru",
+    genre: "Family · Adventure",
+    runtime: "106 min",
+    rating: "★ 7.1",
+    desc: "Paddington and the Brown family travel to Peru to visit his beloved Aunt Lucy, now residing in the Home for Retired Bears.",
+    formats: ["3d"],
+    sessions: [
+      { chain: "cinesa", cinema: "Cinesa Nassica", times: [
+        { t: "11:00", p: "€8.90",  f: "3D",  url: "#" },
+        { t: "13:15", p: "€8.90",  f: "Doblada", url: "#" },
+        { t: "16:00", p: "€8.90",  f: "3D",  url: "#" },
+      ]},
+      { chain: "yelmo", cinema: "Yelmo Islazul", times: [
+        { t: "11:30", p: "€8.50",  f: "3D",  url: "#" },
+        { t: "13:45", p: "€8.50",  f: "Doblada", url: "#" },
+      ]},
+    ]
+  },
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let activeFilters = new Set();
+let currentLang = 'en';
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setDate();
+  buildTicker();
+  renderFilms(FILMS);
+});
+
+function setDate() {
+  const d = new Date();
+  const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
+}
+
+// ── TICKER ─────────────────────────────────────────────────────────────────
+function buildTicker() {
+  const items = [
+    { label: "Now showing", val: "Dune: Messiah" },
+    { label: "VOSE sessions today", val: "34" },
+    { label: "IMAX available at", val: "Cinesa La Gavia" },
+    { label: "Cheapest session", val: "€8.50 at Yelmo" },
+    { label: "Latest show tonight", val: "22:45" },
+    { label: "New this week", val: "The Brutalist" },
+    { label: "Data updated", val: "15 min ago" },
+    { label: "Chains covered", val: "Cinesa · Yelmo · Kinepolis" },
+  ];
+  const doubled = [...items, ...items];
+  const track = document.getElementById('ticker');
+  track.innerHTML = doubled.map(i =>
+    `<span class="ticker-item"><span class="ticker-sep">◆</span> ${i.label}: <strong>${i.val}</strong></span>`
+  ).join('');
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function getBadgeHTML(fmt) {
+  const map = {
+    'VOSE': '<span class="badge badge-vose">VOSE</span>',
+    'IMAX': '<span class="badge badge-imax">IMAX</span>',
+    '4DX':  '<span class="badge badge-4dx">4DX</span>',
+    '3D':   '<span class="badge badge-3d">3D</span>',
+    'VO':   '<span class="badge badge-ov">VO</span>',
+  };
+  return map[fmt] || '';
+}
+
+function renderFilms(films) {
+  const grid = document.getElementById('filmsGrid');
+  const noR  = document.getElementById('noResults');
+
+  if (!films.length) {
+    grid.innerHTML = '';
+    noR.classList.add('show');
+    document.getElementById('sectionCount').textContent = 'No results';
+    return;
+  }
+
+  noR.classList.remove('show');
+  let totalSessions = 0;
+  films.forEach(f => f.sessions.forEach(s => totalSessions += s.times.length));
+  document.getElementById('sectionCount').textContent = `${films.length} films · ${totalSessions} sessions`;
+
+  grid.innerHTML = films.map(film => {
+    const topChain = film.sessions[0]?.chain || 'cinesa';
+    const allFormats = [...new Set(film.sessions.flatMap(s => s.times.map(t => t.f)))];
+    const topBadges = allFormats.slice(0, 3).map(getBadgeHTML).join('');
+
+    // Show first chain's first 3 sessions in card
+    const previewSessions = film.sessions.slice(0, 2).map(s => {
+      const times = s.times.slice(0, 4);
+      return `
+        <div class="session-chain">${s.cinema}</div>
+        <div class="session-times">
+          ${times.map(t => `
+            <a class="time-btn" href="${t.url}" target="_blank" title="${t.f} · ${t.p}">
+              ${t.t}<span class="price">${t.p}</span>
+            </a>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+
+    const extraChains = film.sessions.length > 2 ? `<span class="more-sessions" onclick="openModal(${film.id})">+${film.sessions.length - 2} more cinemas →</span>` : '';
+
+    return `
+      <div class="film-card" data-id="${film.id}" data-chain="${topChain}" data-formats="${film.formats.join(',')}" onclick="openModal(${film.id})">
+        <div class="film-card-inner">
+          <div class="poster-placeholder">${film.title[0]}</div>
+          <div class="film-info">
+            <div class="film-badges">${topBadges}</div>
+            <div class="film-title">${film.title}</div>
+            <div class="film-meta">
+              <span>${film.genre}</span>
+              <span class="film-meta-sep">·</span>
+              <span>${film.runtime}</span>
+              <span class="film-meta-sep">·</span>
+              <span class="film-rating">${film.rating}</span>
+            </div>
+            <div class="sessions" onclick="event.stopPropagation()">
+              ${previewSessions}
+              ${extraChains}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── FILTER ─────────────────────────────────────────────────────────────────
+function togglePill(el, filter) {
+  if (activeFilters.has(filter)) {
+    activeFilters.delete(filter);
+    el.classList.remove('active');
+  } else {
+    activeFilters.add(filter);
+    el.classList.add('active');
+  }
+  filterFilms();
+}
+
+function filterFilms() {
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  let result = FILMS;
+
+  if (query) {
+    result = result.filter(f =>
+      f.title.toLowerCase().includes(query) ||
+      f.genre.toLowerCase().includes(query) ||
+      f.sessions.some(s => s.cinema.toLowerCase().includes(query))
+    );
+  }
+
+  if (activeFilters.has('vose')) {
+    result = result.filter(f => f.formats.includes('vose'));
+  }
+  if (activeFilters.has('vo')) {
+    result = result.filter(f => f.formats.includes('vo'));
+  }
+  if (activeFilters.has('imax')) {
+    result = result.filter(f => f.formats.includes('imax'));
+  }
+  if (activeFilters.has('4dx')) {
+    result = result.filter(f => f.formats.includes('4dx'));
+  }
+  if (activeFilters.has('3d')) {
+    result = result.filter(f => f.formats.includes('3d'));
+  }
+  if (activeFilters.has('cinesa')) {
+    result = result.filter(f => f.sessions.some(s => s.chain === 'cinesa'));
+  }
+  if (activeFilters.has('yelmo')) {
+    result = result.filter(f => f.sessions.some(s => s.chain === 'yelmo'));
+  }
+  if (activeFilters.has('kinepolis')) {
+    result = result.filter(f => f.sessions.some(s => s.chain === 'kinepolis'));
+  }
+  if (activeFilters.has('price')) {
+    result = result.filter(f =>
+      f.sessions.some(s => s.times.some(t => parseFloat(t.p.replace('€','')) < 9))
+    );
+  }
+
+  renderFilms(result);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const film = FILMS.find(f => f.id === id);
+  if (!film) return;
+
+  const allFormats = [...new Set(film.sessions.flatMap(s => s.times.map(t => t.f)))];
+  document.getElementById('modalBadges').innerHTML = allFormats.slice(0,5).map(getBadgeHTML).join('');
+  document.getElementById('modalPoster').textContent = film.title[0];
+  document.getElementById('modalTitle').textContent = film.title;
+  document.getElementById('modalMeta').innerHTML = `<span>${film.genre}</span> <span class="film-meta-sep">·</span> <span>${film.runtime}</span> <span class="film-meta-sep">·</span> <span class="film-rating">${film.rating}</span>`;
+  document.getElementById('modalDesc').textContent = film.desc;
+
+  const chainColors = { cinesa: 'cinesa', yelmo: 'yelmo', kinepolis: 'kinepolis' };
+  const chainNames  = { cinesa: 'Cinesa', yelmo: 'Yelmo Cines', kinepolis: 'Kinepolis' };
+
+  document.getElementById('modalBody').innerHTML = film.sessions.map(s => `
+    <div class="modal-chain-group">
+      <div class="modal-chain-label">
+        <span class="chain-dot ${chainColors[s.chain]}"></span>
+        <span class="modal-chain-name">${chainNames[s.chain]}</span>
+        <span class="modal-cinema-name">— ${s.cinema}</span>
+      </div>
+      <div class="modal-sessions-grid">
+        ${s.times.map(t => `
+          <a class="modal-time-btn" href="${t.url}" target="_blank" onclick="event.stopPropagation()">
+            <span class="t">${t.t}</span>
+            <span class="f">${t.f}</span>
+            <span class="p">${t.p}</span>
+          </a>
+        `).join('')}
+      </div>
+      <a class="book-link" href="#" target="_blank">View all at ${chainNames[s.chain]} →</a>
+    </div>
+  `).join('<hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">');
+
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+// ── LANG ─────────────────────────────────────────────────────────────────
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'es' : 'en';
+  // In production this would swap all UI strings
+  alert(currentLang === 'es' ? 'Español activado (demo)' : 'English activated (demo)');
+}
+</script>
+</body>
+</html>
