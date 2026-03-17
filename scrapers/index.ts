@@ -125,9 +125,12 @@ function buildFilmInsert(slug: string, fallbackTitle: string, enriched: Enriched
   };
 }
 
+const RETRY_DELAY_MS = 30_000;
+
 async function runChain(
   chainRunner: () => Promise<ChainScrapePayload>,
-  fallbackChain: ScrapeResult["chain"]
+  fallbackChain: ScrapeResult["chain"],
+  attempt = 1
 ): Promise<ScrapeResult> {
   const startedAt = Date.now();
 
@@ -201,6 +204,14 @@ async function runChain(
     await logScrapeRun(result);
     return result;
   } catch (error) {
+    // One automatic retry after a delay — handles transient network errors and bot-protection
+    // soft-blocks that sometimes clear on a second request.
+    if (attempt < 2) {
+      console.warn(`[${fallbackChain}] Attempt ${attempt} failed, retrying in ${RETRY_DELAY_MS / 1000}s…`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      return runChain(chainRunner, fallbackChain, attempt + 1);
+    }
+
     const result: ScrapeResult = {
       chain: fallbackChain,
       status: "failed",
@@ -229,12 +240,13 @@ export async function runAllScrapers(): Promise<ScrapeResult[]> {
     results.push(result);
   }
 
-  // Clean up showtimes older than 7 days
+  // Invoke the DB-side cleanup function that removes 7-day-old sessions and
+  // sessions not refreshed in the last 9 hours (cancelled by cinema).
   try {
     const supabase = createServiceSupabaseClient();
-    await supabase.from("showtimes").delete().lt("show_date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    await supabase.rpc("cleanup_stale_showtimes");
   } catch (err) {
-    console.warn("[cleanup] Failed to clean stale showtimes:", err);
+    console.warn("[cleanup] cleanup_stale_showtimes RPC failed:", err);
   }
 
   return results;

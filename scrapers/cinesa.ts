@@ -36,26 +36,30 @@ interface CinesaShowtimeResponse {
   }>;
 }
 
-async function captureJsonResponses<T>(
+interface ListenerHandle<T> {
+  store: Map<string, T>;
+  /** Remove this specific listener from the page without touching others. */
+  detach: () => void;
+}
+
+function attachResponseListener<T>(
   page: Page,
   matcher: (url: string) => boolean
-): Promise<Map<string, T>> {
+): ListenerHandle<T> {
   const store = new Map<string, T>();
 
-  page.on("response", async (response) => {
+  const handler = async (response: { url: () => string; json: () => Promise<unknown> }) => {
     const url = response.url();
-    if (!matcher(url)) {
-      return;
-    }
-
+    if (!matcher(url)) return;
     try {
       store.set(url, (await response.json()) as T);
     } catch {
-      // Ignore non-JSON failures. The scraper falls back to partial results.
+      // Ignore non-JSON failures.
     }
-  });
+  };
 
-  return store;
+  page.on("response", handler);
+  return { store, detach: () => page.off("response", handler) };
 }
 
 function inferFormat(attributeIds: string[] | undefined): string {
@@ -81,12 +85,17 @@ function inferFormat(attributeIds: string[] | undefined): string {
   return "Doblada";
 }
 
-async function scrapeCinema(page: Page, cinemaSlug: (typeof MADRID_CINESA_TARGETS)[number]): Promise<RawShowtime[]> {
-  // Remove accumulated listeners from previous cinema iterations
-  page.removeAllListeners("response");
-  const filmsStore = await captureJsonResponses<{ films: CinesaFilm[] }>(page, (url) => url.endsWith("/films"));
-  const showtimesStore = await captureJsonResponses<CinesaShowtimeResponse>(page, (url) =>
-    url.includes("/showtimes/by-business-date")
+async function scrapeCinema(
+  page: Page,
+  cinemaSlug: (typeof MADRID_CINESA_TARGETS)[number],
+  filmById: Map<string, string>
+): Promise<RawShowtime[]> {
+  // Attach a fresh showtimes listener for this cinema only.
+  // We use page.off to remove ONLY this listener afterwards — preserving the global
+  // films listener which must stay alive across all cinema iterations.
+  const { store: showtimesStore, detach: detachShowtimes } = attachResponseListener<CinesaShowtimeResponse>(
+    page,
+    (url) => url.includes("/showtimes/by-business-date")
   );
 
   await page.goto(`https://www.cinesa.es/cines/${CINESA_PATHS[cinemaSlug]}/`, {
@@ -101,9 +110,8 @@ async function scrapeCinema(page: Page, cinemaSlug: (typeof MADRID_CINESA_TARGET
     await randomDelay();
   }
 
-  const films = [...filmsStore.values()].flatMap((value) => value.films);
   const showtimesResponses = [...showtimesStore.values()];
-  const filmById = new Map(films.map((film) => [film.id, film.title.text]));
+  detachShowtimes();
 
   return showtimesResponses.flatMap((response) =>
     response.showtimes.map((showtime) => ({
@@ -133,11 +141,71 @@ export async function scrapeCinesa(): Promise<ChainScrapePayload> {
   const rawShowtimes: RawShowtime[] = [];
 
   try {
+    // Capture ANY VWC films endpoint — including the global /films and per-site
+    // /films?siteIds=027 variants. Using includes("/v1/films") catches both.
+    const { store: filmsStore } = attachResponseListener<{ films: CinesaFilm[] }>(
+      page,
+      (url) => url.includes("cinesa.es") && url.includes("/films")
+    );
+    const filmById = new Map<string, string>();
+
+    function refreshFilmById(): void {
+      for (const value of filmsStore.values()) {
+        for (const film of value.films ?? []) {
+          if (!filmById.has(film.id)) {
+            filmById.set(film.id, film.title.text);
+          }
+        }
+      }
+    }
+
     for (const cinemaSlug of MADRID_CINESA_TARGETS) {
       try {
-        rawShowtimes.push(...(await scrapeCinema(page, cinemaSlug)));
+        const results = await scrapeCinema(page, cinemaSlug, filmById);
+        refreshFilmById();
+        rawShowtimes.push(...results.map((r) => ({
+          ...r,
+          film_title: /^HO\d+$/.test(r.film_title) ? (filmById.get(r.film_title) ?? r.film_title) : r.film_title
+        })));
       } catch {
         continue;
+      }
+    }
+
+    // Final pass: resolve any HO IDs that still weren't captured via interception.
+    // The VWC API accepts individual film IDs directly.
+    refreshFilmById();
+    const unresolvedIds = [...new Set(
+      rawShowtimes
+        .map((r) => r.film_title)
+        .filter((t) => /^HO\d+$/.test(t))
+    )];
+
+    if (unresolvedIds.length > 0) {
+      console.log(`[cinesa] Resolving ${unresolvedIds.length} unmatched film IDs via API...`);
+      for (const filmId of unresolvedIds) {
+        try {
+          const res = await fetch(
+            `https://vwc.cinesa.es/WSVistaWebClient/ocapi/v1/films/${filmId}`,
+            { headers: { Accept: "application/json", "User-Agent": DEFAULT_USER_AGENT } }
+          );
+          if (res.ok) {
+            const data = await res.json() as { id?: string; title?: { text?: string } };
+            if (data?.title?.text) {
+              filmById.set(filmId, data.title.text);
+            }
+          }
+        } catch {
+          // Best-effort — unresolved IDs stay as-is
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      // Apply resolved titles to the collected showtimes
+      for (const r of rawShowtimes) {
+        if (/^HO\d+$/.test(r.film_title) && filmById.has(r.film_title)) {
+          r.film_title = filmById.get(r.film_title)!;
+        }
       }
     }
   } finally {

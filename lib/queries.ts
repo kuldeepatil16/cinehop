@@ -142,6 +142,14 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
   };
 }
 
+// Sessions not refreshed within 8 hours (≈2 scrape cycles at 3h cadence + buffer) are
+// considered stale and hidden from users — they may have been cancelled by the cinema.
+const STALE_AFTER_MS = 8 * 60 * 60 * 1000;
+
+function freshnessThreshold(): string {
+  return new Date(Date.now() - STALE_AFTER_MS).toISOString();
+}
+
 function buildShowtimesQuery(supabase: ReturnType<typeof createServerSupabaseClient>, date: string) {
   return supabase
     .from("showtimes")
