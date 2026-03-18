@@ -7,13 +7,12 @@ import type {
   ChainScrapePayload,
   EnrichedFilmData,
   NormalisedShowtime,
-  ScrapeResult,
-  ScrapeStatus
+  ScrapeResult
 } from "@/lib/types";
 import { scrapeCinesa } from "@/scrapers/cinesa";
 import { scrapeKinepolis } from "@/scrapers/kinepolis";
-import { enrichFilmCandidate } from "@/scrapers/omdb";
-import { collectFilmCandidates, normaliseShowtime, randomDelay, slugify } from "@/scrapers/normalise";
+import { buildFallbackFilmData } from "@/scrapers/omdb";
+import { collectFilmCandidates, computeSourceHash, normaliseShowtime, slugify } from "@/scrapers/normalise";
 import { scrapeYelmo } from "@/scrapers/yelmo";
 
 function loadLocalEnv(): void {
@@ -69,23 +68,35 @@ async function upsertFilms(
   const candidates = collectFilmCandidates(payload.rawShowtimes);
 
   for (const candidate of candidates) {
-    const enriched = await enrichFilmCandidate(candidate);
-    const slug = slugify(enriched.title || candidate.title);
-    const filmRow = buildFilmInsert(slug, candidate.title, enriched);
+    // Skip inline OMDB enrichment — it blocks each scrape run by ~600ms per
+    // new film. The nightly enrich-posters.ts fills in metadata (poster,
+    // rating, synopsis, runtime) for any film that's missing it.
+    const fallback = buildFallbackFilmData(candidate);
+    let slug = slugify(fallback.title || candidate.title);
 
+    // Slug collision guard: if a film already exists with this slug but a
+    // different title (e.g. two films both called "Nosferatu"), disambiguate
+    // by appending a short hash of the original scraped title.
+    const { data: existing } = await supabase
+      .from("films")
+      .select("id, title")
+      .eq("slug", slug)
+      .maybeSingle();
+    const existingTitle = (existing as { id?: string; title?: string } | null)?.title;
+    if (existingTitle && slugify(existingTitle) !== slugify(candidate.title)) {
+      slug = `${slug}-${computeSourceHash(candidate.title).slice(0, 6)}`;
+    }
+
+    const filmRow = buildFilmInsert(slug, candidate.title, fallback);
     const { data, error } = await supabase
       .from("films")
-      .upsert([filmRow], {
-        onConflict: "slug"
-      })
+      .upsert([filmRow], { onConflict: "slug" })
       .select("id, slug")
       .single();
 
     if (!error && data) {
       titleToFilmId.set(candidate.title, (data as { id: string }).id);
     }
-
-    await randomDelay(250, 650);
   }
 
   for (const showtime of normalisedShowtimes) {
@@ -197,7 +208,7 @@ async function runChain(
 
     const result: ScrapeResult = {
       chain: payload.chain,
-      status: rows.length > 0 ? "success" : "partial",
+      status: rows.length > 0 ? "success" : "failed",
       sessions_found: normalised.length,
       sessions_new: sessionsNew,
       sessions_updated: sessionsUpdated,
