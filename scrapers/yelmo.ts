@@ -7,6 +7,7 @@ import { isPathAllowed } from "@/scrapers/robots-check";
 
 // All Yelmo cinemas organised by city page URL.
 // The `value` field must match the <option value="..."> in the #ddlCinema dropdown.
+// Dropdown values verified against live #ddlCinema options on 2026-03-18.
 const YELMO_CITY_TARGETS = [
   {
     cityUrl: "https://yelmocines.es/cartelera/madrid",
@@ -17,38 +18,41 @@ const YELMO_CITY_TARGETS = [
       { value: "plenilunio", slug: "yelmo-plenilunio", name: "Yelmo Plenilunio" },
       { value: "planetocio", slug: "yelmo-planetocio", name: "Yelmo Planetocio" },
       { value: "rivas-h2o", slug: "yelmo-rivas-h2o", name: "Yelmo Rivas H2O" },
-      { value: "tres-aguas", slug: "yelmo-tres-aguas", name: "Yelmo Tres Aguas" },
-      { value: "plaza-norte-2", slug: "yelmo-plaza-norte", name: "Yelmo Plaza Norte" },
+      { value: "tresaguas", slug: "yelmo-tresaguas", name: "Yelmo TresAguas" },
+      { value: "plaza-norte-2", slug: "yelmo-plaza-norte", name: "Yelmo Plaza Norte 2" },
+      { value: "palafox-luxury", slug: "yelmo-palafox-luxury", name: "Yelmo Palafox Luxury" },
+      { value: "premium-parque-corredor", slug: "yelmo-parque-corredor", name: "Yelmo Premium Parque Corredor" },
     ],
   },
   {
     cityUrl: "https://yelmocines.es/cartelera/barcelona",
     cinemas: [
-      { value: "castelldefels", slug: "yelmo-castelldefels", name: "Yelmo Premium Castelldefels" },
-      { value: "abrera", slug: "yelmo-abrera", name: "Yelmo Abrera" },
       { value: "baricentro", slug: "yelmo-baricentro", name: "Yelmo Baricentro" },
-      { value: "la-maquinista", slug: "yelmo-la-maquinista", name: "Yelmo Westfield La Maquinista" },
-      { value: "sant-cugat", slug: "yelmo-sant-cugat", name: "Yelmo Premium Sant Cugat" },
+      { value: "abrera", slug: "yelmo-abrera", name: "Yelmo Abrera" },
+      { value: "premium-sant-cugat", slug: "yelmo-sant-cugat", name: "Yelmo Premium Sant Cugat" },
+      { value: "premium-castelldefels", slug: "yelmo-castelldefels", name: "Yelmo Premium Castelldefels" },
+      { value: "westfield-la-maquinista", slug: "yelmo-la-maquinista", name: "Yelmo Westfield La Maquinista" },
     ],
   },
   {
     cityUrl: "https://yelmocines.es/cartelera/valencia",
     cinemas: [
-      { value: "campanar", slug: "yelmo-campanar", name: "Yelmo Mercado de Campanar" },
-      { value: "vidanova-parc", slug: "yelmo-vidanova-parc", name: "Yelmo Vidanova Parc" },
+      { value: "mercado-de-campanar", slug: "yelmo-campanar", name: "Yelmo Mercado de Campanar" },
+      { value: "vidanova-parc", slug: "yelmo-vidanova-parc", name: "Yelmo VidaNova Parc" },
     ],
   },
   {
     cityUrl: "https://yelmocines.es/cartelera/sevilla",
     cinemas: [
-      { value: "lagoh", slug: "yelmo-lagoh", name: "Yelmo Premium Lagoh" },
+      { value: "-premium-lagoh", slug: "yelmo-lagoh", name: "Yelmo Premium Lagoh" },
     ],
   },
   {
+    // NOTE: Bilbao dropdown showed only "-premium-lagoh" on 2026-03-18 which may be
+    // a page-load issue (first option had value "0"). Re-verify if no Bilbao sessions appear.
     cityUrl: "https://yelmocines.es/cartelera/bilbao",
     cinemas: [
-      { value: "megapark", slug: "yelmo-megapark", name: "Yelmo Megapark" },
-      { value: "artea", slug: "yelmo-artea", name: "Yelmo Artea" },
+      { value: "-premium-lagoh", slug: "yelmo-bilbao-megapark", name: "Yelmo Bilbao" },
     ],
   },
 ] as const;
