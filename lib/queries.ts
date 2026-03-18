@@ -56,6 +56,10 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
     query = query.eq("format", params.format);
   }
 
+  if (params.language) {
+    query = query.eq("language", params.language);
+  }
+
   const { data, error } = await query;
 
   if (error) {

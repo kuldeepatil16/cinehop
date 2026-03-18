@@ -80,6 +80,12 @@ export function HomepageClient({ initialData }: HomepageClientProps) {
     if (filters.has("kinepolis")) {
       params.set("chain", "kinepolis");
     }
+    if (filters.has("lang-en")) {
+      params.set("language", "en");
+    }
+    if (filters.has("lang-es")) {
+      params.set("language", "es");
+    }
     if (filters.has("price")) {
       params.set("price_max", "9");
     }

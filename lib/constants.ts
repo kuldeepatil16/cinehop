@@ -92,18 +92,43 @@ export const HOMEPAGE_META = {
     "Encuentra todas las sesiones de cine en Madrid — Cinesa, Yelmo y Kinepolis. Filtros VOSE, IMAX, 4DX y precios. Sin sorpresas.",
 };
 
-export const FILTER_PILLS = [
-  { id: "vose", label: "VOSE First", value: "VOSE", prominent: true },
-  { id: "vo", label: "VO", value: "VO" },
-  { id: "imax", label: "IMAX", value: "IMAX" },
-  { id: "4dx", label: "4DX", value: "4DX" },
-  { id: "3d", label: "3D", value: "3D" },
-  { id: "screenx", label: "ScreenX", value: "ScreenX" },
-  { id: "cinesa", label: "Cinesa", value: "cinesa" },
-  { id: "yelmo", label: "Yelmo", value: "yelmo" },
-  { id: "kinepolis", label: "Kinepolis", value: "kinepolis" },
-  { id: "price", label: "Under €9", value: "price" },
+export const FILTER_GROUPS = [
+  {
+    id: "format",
+    label: "Format",
+    pills: [
+      { id: "vose", label: "VOSE", prominent: true },
+      { id: "vo", label: "VO" },
+      { id: "imax", label: "IMAX" },
+      { id: "4dx", label: "4DX" },
+      { id: "3d", label: "3D" },
+      { id: "screenx", label: "ScreenX" },
+    ],
+  },
+  {
+    id: "language",
+    label: "Language",
+    pills: [
+      { id: "lang-en", label: "English" },
+      { id: "lang-es", label: "Español" },
+    ],
+  },
+  {
+    id: "chain",
+    label: "Cinema",
+    pills: [
+      { id: "cinesa", label: "Cinesa" },
+      { id: "yelmo", label: "Yelmo" },
+      { id: "kinepolis", label: "Kinepolis" },
+    ],
+  },
+  {
+    id: "price",
+    label: "Price",
+    pills: [{ id: "price", label: "Under €9" }],
+  },
 ] as const;
+
 
 export const FOOTER_COPY =
   "CineHop Madrid · Data refreshed every 2h · Not affiliated with any cinema chain";

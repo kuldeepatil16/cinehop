@@ -212,6 +212,7 @@ export interface FilmsApiParams {
   zone?: Zone;
   q?: string;
   price_max?: string;
+  language?: string;
 }
 
 export interface FilmsApiResponse {

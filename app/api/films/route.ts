@@ -12,7 +12,8 @@ export async function GET(request: Request): Promise<Response> {
     chain: (searchParams.get("chain") ?? undefined) as FilmsApiParams["chain"],
     zone: (searchParams.get("zone") ?? undefined) as FilmsApiParams["zone"],
     q: searchParams.get("q") ?? undefined,
-    price_max: searchParams.get("price_max") ?? undefined
+    price_max: searchParams.get("price_max") ?? undefined,
+    language: searchParams.get("language") ?? undefined
   };
 
   try {

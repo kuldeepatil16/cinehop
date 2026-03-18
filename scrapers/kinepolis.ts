@@ -1,8 +1,9 @@
 import { chromium, type Page } from "playwright";
 
-import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, SPAIN_LOCALE } from "@/lib/constants";
+import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, SPAIN_LOCALE, CHAIN_TARGETS } from "@/lib/constants";
 import type { ChainScrapePayload, RawShowtime } from "@/lib/types";
 import { extractTimes, randomDelay, toIsoDate, addDays } from "@/scrapers/normalise";
+import { isPathAllowed } from "@/scrapers/robots-check";
 
 // Kinepolis Madrid — the only Kinepolis in Madrid
 const KINEPOLIS_CINEMA = {
@@ -209,6 +210,12 @@ async function scrapeForDate(page: Page, date: string): Promise<RawShowtime[]> {
 }
 
 export async function scrapeKinepolis(): Promise<ChainScrapePayload> {
+  const root = CHAIN_TARGETS.kinepolis.root;
+  if (!await isPathAllowed(root, "/carteleras/madrid")) {
+    console.warn("[kinepolis] robots.txt disallows /carteleras/madrid — skipping");
+    return { chain: "kinepolis", rawShowtimes: [] };
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     userAgent: DEFAULT_USER_AGENT,

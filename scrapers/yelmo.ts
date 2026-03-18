@@ -1,8 +1,9 @@
 import { chromium } from "playwright";
 
-import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, SPAIN_LOCALE } from "@/lib/constants";
+import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, SPAIN_LOCALE, CHAIN_TARGETS } from "@/lib/constants";
 import type { ChainScrapePayload, RawShowtime } from "@/lib/types";
 import { extractTimes, parseEuroPrice, randomDelay, toIsoDate } from "@/scrapers/normalise";
+import { isPathAllowed } from "@/scrapers/robots-check";
 
 const YELMO_CINEMAS = [
   { value: "ideal", slug: "yelmo-ideal", name: "Yelmo Ideal" },
@@ -81,6 +82,12 @@ function parseShowtimeText(
 }
 
 export async function scrapeYelmo(): Promise<ChainScrapePayload> {
+  const root = CHAIN_TARGETS.yelmo.root;
+  if (!await isPathAllowed(root, "/cartelera/madrid")) {
+    console.warn("[yelmo] robots.txt disallows /cartelera/madrid — skipping");
+    return { chain: "yelmo", rawShowtimes: [] };
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     userAgent: DEFAULT_USER_AGENT,

@@ -1,8 +1,9 @@
 import { chromium, type Page } from "playwright";
 
-import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, MADRID_CINESA_TARGETS, SPAIN_LOCALE } from "@/lib/constants";
+import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, MADRID_CINESA_TARGETS, SPAIN_LOCALE, CHAIN_TARGETS } from "@/lib/constants";
 import type { ChainScrapePayload, RawShowtime } from "@/lib/types";
 import { randomDelay } from "@/scrapers/normalise";
+import { isPathAllowed } from "@/scrapers/robots-check";
 
 const CINESA_PATHS: Record<(typeof MADRID_CINESA_TARGETS)[number], string> = {
   "cinesa-la-gavia": "la-gavia",
@@ -130,6 +131,12 @@ async function scrapeCinema(
 }
 
 export async function scrapeCinesa(): Promise<ChainScrapePayload> {
+  const root = CHAIN_TARGETS.cinesa.root;
+  if (!await isPathAllowed(root, "/cines/")) {
+    console.warn("[cinesa] robots.txt disallows /cines/ — skipping");
+    return { chain: "cinesa", rawShowtimes: [] };
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     userAgent: DEFAULT_USER_AGENT,

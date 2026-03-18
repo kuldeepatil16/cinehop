@@ -14,6 +14,23 @@
   --chain-cinesa: #1a1a2e;
   --chain-yelmo: #8b0000;
   --chain-kinepolis: #1b4332;
+  /* Always-dark surface (search shell, ticker, film placeholder) */
+  --surface-dark: #0e0e0e;
+  /* Text/icons that live on always-dark surfaces */
+  --on-surface: #f5f2ec;
+  /* Modal backdrop — stays dark regardless of theme */
+  --overlay: rgba(0, 0, 0, 0.72);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ede9e0;
+    --paper: #1a1816;
+    --cream: #201e1b;
+    --muted: #857f78;
+    --border: rgba(237, 233, 224, 0.12);
+    --overlay: rgba(0, 0, 0, 0.88);
+  }
 }
 
 *,
@@ -184,7 +201,7 @@ a {
   align-items: flex-end;
   margin-bottom: 1.25rem;
   border-radius: 4px;
-  background: var(--ink);
+  background: var(--surface-dark);
   padding: 1.5rem 2rem;
 }
 
@@ -195,7 +212,7 @@ a {
   right: 0;
   width: 120px;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(232, 57, 29, 0.08));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 8%, transparent));
 }
 
 .search-field {
@@ -219,17 +236,17 @@ a {
   font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(245, 242, 236, 0.45);
+  color: color-mix(in srgb, var(--on-surface) 45%, transparent);
 }
 
 .search-field input,
 .search-field select {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--on-surface) 12%, transparent);
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--on-surface) 6%, transparent);
   padding: 0.65rem 0.9rem;
-  color: var(--paper);
+  color: var(--on-surface);
   font-family: var(--font-dm-sans), sans-serif;
   font-size: 0.95rem;
 }
@@ -251,6 +268,31 @@ a {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 3.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-group-label {
+  color: var(--muted);
+  font-family: var(--font-dm-mono), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-right: 0.25rem;
+  white-space: nowrap;
+}
+
+.filter-sep {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--border);
+  margin: 0 0.35rem;
+  flex-shrink: 0;
 }
 
 .pill {
@@ -281,7 +323,7 @@ a {
   overflow: hidden;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: var(--ink);
+  background: var(--surface-dark);
   padding: 0.5rem 0;
 }
 
@@ -297,14 +339,14 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  color: rgba(245, 242, 236, 0.5);
+  color: color-mix(in srgb, var(--on-surface) 50%, transparent);
   font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .ticker-item strong {
-  color: var(--paper);
+  color: var(--on-surface);
 }
 
 .ticker-sep {
@@ -409,8 +451,8 @@ a {
   width: 72px;
   height: 104px;
   place-items: center;
-  background: var(--ink);
-  color: rgba(245, 242, 236, 0.18);
+  background: var(--surface-dark);
+  color: color-mix(in srgb, var(--on-surface) 18%, transparent);
   font-family: var(--font-bebas), sans-serif;
   font-size: 1.5rem;
 }
@@ -442,8 +484,8 @@ a {
 }
 
 .badge-imax {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--surface-dark);
+  color: var(--on-surface);
 }
 
 .badge-alt {
@@ -503,9 +545,9 @@ a {
 }
 
 .time-pill:hover {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+  border-color: var(--surface-dark);
+  background: var(--surface-dark);
+  color: var(--on-surface);
 }
 
 .price-chip {
@@ -519,7 +561,7 @@ a {
   z-index: 200;
   display: grid;
   place-items: center;
-  background: rgba(14, 14, 14, 0.7);
+  background: var(--overlay);
   padding: 1.5rem;
 }
 
@@ -541,9 +583,9 @@ a {
   margin-bottom: 2rem;
   border: 1px solid var(--border);
   background:
-    linear-gradient(135deg, rgba(14, 14, 14, 0.85), rgba(14, 14, 14, 0.45)),
-    linear-gradient(120deg, rgba(232, 57, 29, 0.35), transparent 45%),
-    var(--ink);
+    linear-gradient(135deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.45)),
+    linear-gradient(120deg, color-mix(in srgb, var(--accent) 35%, transparent), transparent 45%),
+    var(--surface-dark);
 }
 
 .detail-hero-inner {
@@ -555,7 +597,7 @@ a {
 
 .detail-title {
   margin: 0 0 0.75rem;
-  color: var(--paper);
+  color: var(--on-surface);
   font-family: var(--font-bebas), sans-serif;
   font-size: clamp(3rem, 7vw, 5rem);
   line-height: 0.95;
@@ -563,7 +605,7 @@ a {
 
 .detail-copy {
   max-width: 60ch;
-  color: rgba(245, 242, 236, 0.82);
+  color: color-mix(in srgb, var(--on-surface) 82%, transparent);
   line-height: 1.65;
 }
 
@@ -575,7 +617,7 @@ a {
 
 .detail-card {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.4);
+  background: color-mix(in srgb, var(--paper) 40%, transparent);
   padding: 1.25rem;
 }
 
@@ -615,7 +657,7 @@ a {
   font-size: 0.6rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(245, 242, 236, 0.82);
+  color: color-mix(in srgb, var(--on-surface) 82%, transparent);
 }
 
 .ad-slot {
@@ -623,7 +665,7 @@ a {
   min-height: 90px;
   place-items: center;
   border: 1px dashed var(--border);
-  background: rgba(255, 255, 255, 0.35);
+  background: color-mix(in srgb, var(--paper) 35%, transparent);
   color: var(--muted);
   font-family: var(--font-dm-mono), monospace;
   font-size: 0.72rem;
@@ -640,7 +682,7 @@ a {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--paper) 98%, transparent);
   padding: 1rem;
-  box-shadow: 0 14px 40px rgba(14, 14, 14, 0.12);
+  box-shadow: 0 14px 40px var(--border);
 }
 
 @keyframes pulseDot {
