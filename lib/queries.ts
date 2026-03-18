@@ -16,6 +16,21 @@ type JoinedShowtimeRow = Showtime & {
   cinemas: Cinema | Cinema[] | null;
 };
 
+function asArray<T>(value?: T | T[] | null): T[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
+function normaliseText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
 function toFilmMap(rows: JoinedShowtimeRow[]): FilmWithShowtimes[] {
   const filmMap = new Map<string, FilmWithShowtimes>();
 
@@ -52,12 +67,12 @@ function buildShowtimesQuery(
     .order("show_time", { ascending: true });
 
   // Push high-selectivity filters to the DB — avoids loading thousands of rows into Node
-  if (params.city)  query = query.eq("cinemas.city",  params.city);
-  if (params.chain) query = query.eq("cinemas.chain", params.chain);
-  if (params.zone)  query = query.eq("cinemas.zone",  params.zone);
+  if (params.city) query = query.eq("cinemas.city", params.city);
+  if (!Array.isArray(params.chain) && params.chain) query = query.eq("cinemas.chain", params.chain);
+  if (params.zone) query = query.eq("cinemas.zone", params.zone);
   if (params.vose === "true") query = query.eq("is_vose", true);
-  if (params.format)   query = query.eq("format",   params.format);
-  if (params.language) query = query.eq("language", params.language);
+  if (!Array.isArray(params.format) && params.format) query = query.eq("format", params.format);
+  if (!Array.isArray(params.language) && params.language) query = query.eq("language", params.language);
 
   return query;
 }
@@ -77,15 +92,16 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
   // Fallback: if no data for the requested date, show the most recent available date.
   // Apply the same city filter so Barcelona users don't see Madrid fallback data.
   if (rows.length === 0 && (!params.date || params.date === "today" || params.date === "tomorrow")) {
-    const latestQuery = supabase
+    // Narrow fallback to the same city if one was requested.
+    // Must reassign — Supabase builder is immutable; chained calls return new objects.
+    let latestQuery = supabase
       .from("showtimes")
       .select("show_date, cinemas!inner(city)")
       .order("show_date", { ascending: false })
       .limit(1);
 
-    // Narrow fallback to the same city if one was requested
     if (params.city) {
-      latestQuery.eq("cinemas.city", params.city);
+      latestQuery = latestQuery.eq("cinemas.city", params.city);
     }
 
     const { data: latest } = await latestQuery.maybeSingle();
@@ -110,8 +126,22 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
     rows = rows.filter((row) => row.is_vose);
   }
 
-  if (params.format) {
-    rows = rows.filter((row) => row.format === params.format);
+  const formats = asArray(params.format);
+  if (formats.length > 0) {
+    rows = rows.filter((row) => formats.includes(row.format));
+  }
+
+  const chains = asArray(params.chain);
+  if (chains.length > 0) {
+    rows = rows.filter((row) => {
+      const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
+      return cinema ? chains.includes(cinema.chain) : false;
+    });
+  }
+
+  const languages = asArray(params.language);
+  if (languages.length > 0) {
+    rows = rows.filter((row) => row.language !== null && languages.includes(row.language));
   }
 
   if (params.price_max) {
@@ -122,12 +152,12 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
   }
 
   if (params.q) {
-    const queryText = params.q.trim().toLowerCase();
+    const queryText = normaliseText(params.q.trim());
     rows = rows.filter((row) => {
       const film = Array.isArray(row.films) ? row.films[0] : row.films;
-      const filmTitle = `${film?.title ?? ""} ${film?.title_es ?? ""}`.toLowerCase();
+      const filmTitle = normaliseText(`${film?.title ?? ""} ${film?.title_es ?? ""}`);
       const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
-      const cinemaName = cinema?.name.toLowerCase() ?? "";
+      const cinemaName = normaliseText(cinema?.name ?? "");
       return filmTitle.includes(queryText) || cinemaName.includes(queryText);
     });
   }

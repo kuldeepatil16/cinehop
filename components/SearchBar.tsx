@@ -27,7 +27,13 @@ export function SearchBar({
   const { t } = useLanguage();
 
   return (
-    <div className="search-shell">
+    <form
+      className="search-shell"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
       <div className="search-field">
         <label htmlFor="film-search">{t("search")}</label>
         <input
@@ -57,9 +63,9 @@ export function SearchBar({
           ))}
         </select>
       </div>
-      <button className="search-button" type="button" onClick={onSubmit}>
+      <button className="search-button" type="submit">
         {t("search")}
       </button>
-    </div>
+    </form>
   );
 }

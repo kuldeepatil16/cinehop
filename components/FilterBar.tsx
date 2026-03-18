@@ -22,6 +22,7 @@ export function FilterBar({ activeFilters, onToggle }: FilterBarProps) {
                 key={pill.id}
                 className={`pill ${"prominent" in pill && pill.prominent ? "prominent" : ""} ${activeFilters.has(pill.id) ? "active" : ""}`}
                 type="button"
+                aria-pressed={activeFilters.has(pill.id)}
                 onClick={() => onToggle(pill.id)}
               >
                 {pill.label}

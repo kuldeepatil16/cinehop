@@ -211,12 +211,12 @@ export interface FilmsApiParams {
   date?: string;
   city?: City;
   vose?: string;
-  format?: ShowFormat;
-  chain?: Chain;
+  format?: ShowFormat | ShowFormat[];
+  chain?: Chain | Chain[];
   zone?: Zone;
   q?: string;
   price_max?: string;
-  language?: string;
+  language?: string | string[];
 }
 
 export interface FilmsApiResponse {

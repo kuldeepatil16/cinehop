@@ -10,6 +10,7 @@
   --accent-muted: #f5c4bb;
   --gold: #c9a84c;
   --muted: #7a756c;
+  --muted-strong: #5f564b;
   --border: rgba(14, 14, 14, 0.12);
   --chain-cinesa: #1a1a2e;
   --chain-yelmo: #8b0000;
@@ -251,6 +252,10 @@ a {
   font-size: 0.95rem;
 }
 
+.search-field input::placeholder {
+  color: color-mix(in srgb, var(--on-surface) 62%, transparent);
+}
+
 .search-button {
   border: 0;
   border-radius: 3px;
@@ -278,7 +283,7 @@ a {
 }
 
 .filter-group-label {
-  color: var(--muted);
+  color: var(--muted-strong);
   font-family: var(--font-dm-mono), monospace;
   font-size: 0.6rem;
   letter-spacing: 0.1em;
@@ -299,12 +304,27 @@ a {
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--cream);
-  color: var(--muted);
+  color: var(--muted-strong);
   padding: 0.35rem 0.85rem;
   font-size: 0.7rem;
+  font-weight: 500;
   letter-spacing: 0.08em;
   cursor: pointer;
   text-transform: uppercase;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.pill:hover {
+  border-color: color-mix(in srgb, var(--ink) 20%, transparent);
+  color: var(--ink);
+}
+
+.pill:focus-visible,
+.search-button:focus-visible,
+.search-field input:focus-visible,
+.search-field select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline-offset: 2px;
 }
 
 .pill.active {

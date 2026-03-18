@@ -45,7 +45,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("today");
   const [city, setCity] = useState<City>(initialCity);
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(["vose"]));
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -59,7 +59,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
       return t("cheapest_fallback");
     }
 
-    return `€${Math.min(...prices).toFixed(2)} in ${CITY_LABELS[city]}`;
+    return `EUR${Math.min(...prices).toFixed(2)} in ${CITY_LABELS[city]}`;
   }, [city, data.films, t]);
 
   function buildParams(overrideFilters?: Set<string>, overrideDate?: string, overrideCity?: City): URLSearchParams {
@@ -77,36 +77,37 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
     if (filters.has("vose")) {
       params.set("vose", "true");
     }
-    if (filters.has("vo")) {
-      params.set("format", "VO");
+
+    const formatMap = new Map<string, string>([
+      ["vo", "VO"],
+      ["imax", "IMAX"],
+      ["4dx", "4DX"],
+      ["3d", "3D"],
+      ["screenx", "ScreenX"]
+    ]);
+    for (const [filterId, format] of formatMap) {
+      if (filters.has(filterId)) {
+        params.append("format", format);
+      }
     }
-    if (filters.has("imax")) {
-      params.set("format", "IMAX");
+
+    const chainFilters = ["cinesa", "yelmo", "kinepolis"] as const;
+    for (const chain of chainFilters) {
+      if (filters.has(chain)) {
+        params.append("chain", chain);
+      }
     }
-    if (filters.has("4dx")) {
-      params.set("format", "4DX");
+
+    const languageMap = new Map<string, string>([
+      ["lang-en", "en"],
+      ["lang-es", "es"]
+    ]);
+    for (const [filterId, language] of languageMap) {
+      if (filters.has(filterId)) {
+        params.append("language", language);
+      }
     }
-    if (filters.has("3d")) {
-      params.set("format", "3D");
-    }
-    if (filters.has("screenx")) {
-      params.set("format", "ScreenX");
-    }
-    if (filters.has("cinesa")) {
-      params.set("chain", "cinesa");
-    }
-    if (filters.has("yelmo")) {
-      params.set("chain", "yelmo");
-    }
-    if (filters.has("kinepolis")) {
-      params.set("chain", "kinepolis");
-    }
-    if (filters.has("lang-en")) {
-      params.set("language", "en");
-    }
-    if (filters.has("lang-es")) {
-      params.set("language", "es");
-    }
+
     if (filters.has("price")) {
       params.set("price_max", "9");
     }
@@ -119,6 +120,11 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
       const response = await fetch(`/api/films?${params.toString()}`, {
         cache: "no-store"
       });
+
+      if (!response.ok) {
+        return;
+      }
+
       const nextData = (await response.json()) as FilmsApiResponse;
       setData(nextData);
     });
@@ -182,7 +188,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
         <div className="section-header">
           <span className="section-title">{isPending ? t("refreshing") : t("now_showing")}</span>
           <span className="section-count">
-            {data.stats.film_count} films · {data.stats.session_count} sessions
+            {data.stats.film_count} films - {data.stats.session_count} sessions
           </span>
         </div>
         <FilmGrid films={data.films} onOpen={setSelectedFilm} />
