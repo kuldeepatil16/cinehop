@@ -29,6 +29,7 @@
     --paper: #1a1816;
     --cream: #201e1b;
     --muted: #857f78;
+    --muted-strong: #c8c0b8;
     --border: rgba(237, 233, 224, 0.12);
     --overlay: rgba(0, 0, 0, 0.88);
   }
@@ -254,6 +255,13 @@ a {
 
 .search-field input::placeholder {
   color: color-mix(in srgb, var(--on-surface) 62%, transparent);
+}
+
+/* Native select dropdown: browsers render the popup with OS defaults,
+   so we must force colours on the <option> elements explicitly. */
+.search-field select option {
+  background: #0e0e0e;
+  color: #f5f2ec;
 }
 
 .search-button {

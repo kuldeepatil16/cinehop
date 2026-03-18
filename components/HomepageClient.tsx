@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 
 import { FilterBar } from "@/components/FilterBar";
 import { FilmGrid } from "@/components/FilmGrid";
@@ -48,6 +48,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(null);
   const [isPending, startTransition] = useTransition();
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dateOptions = useMemo(() => getDateOptions(t), [t]);
   const cheapestSession = useMemo(() => {
@@ -62,17 +63,24 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
     return `EUR${Math.min(...prices).toFixed(2)} in ${CITY_LABELS[city]}`;
   }, [city, data.films, t]);
 
-  function buildParams(overrideFilters?: Set<string>, overrideDate?: string, overrideCity?: City): URLSearchParams {
+  function buildParams(
+    overrideFilters?: Set<string>,
+    overrideDate?: string,
+    overrideCity?: City,
+    overrideQuery?: string
+  ): URLSearchParams {
     const filters = overrideFilters ?? activeFilters;
     const nextDate = overrideDate ?? date;
     const nextCity = overrideCity ?? city;
+    // overrideQuery lets callers pass the latest typed value before React re-renders
+    const q = overrideQuery !== undefined ? overrideQuery : query;
     const params = new URLSearchParams();
 
     params.set("date", nextDate);
     params.set("city", nextCity);
 
-    if (query.trim()) {
-      params.set("q", query.trim());
+    if (q.trim()) {
+      params.set("q", q.trim());
     }
     if (filters.has("vose")) {
       params.set("vose", "true");
@@ -156,6 +164,17 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
     fetchFilms(buildParams(undefined, undefined, nextCity));
   }
 
+  function handleQueryChange(value: string): void {
+    setQuery(value);
+    // Debounced live search: fires 400 ms after the user stops typing.
+    // We pass the value explicitly so we don't depend on the state update
+    // having already committed (avoids stale-closure misses).
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      fetchFilms(buildParams(undefined, undefined, undefined, value));
+    }, 400);
+  }
+
   return (
     <>
       <Ticker
@@ -179,7 +198,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
           date={date}
           city={city}
           dateOptions={dateOptions}
-          onQueryChange={setQuery}
+          onQueryChange={handleQueryChange}
           onDateChange={handleDateChange}
           onCityChange={handleCityChange}
           onSubmit={reload}
