@@ -1,13 +1,13 @@
-import { chromium } from "playwright";
+import { chromium, type Locator, type Page } from "playwright";
 
 import { CHAIN_TARGETS, DEFAULT_USER_AGENT, MADRID_TIMEZONE, SCRAPE_CONFIG, SPAIN_LOCALE } from "@/lib/constants";
 import type { ChainScrapePayload, RawShowtime } from "@/lib/types";
 import { extractTimes, parseEuroPrice, randomDelay, toIsoDate } from "@/scrapers/normalise";
 import { isPathAllowed } from "@/scrapers/robots-check";
 
-// All Yelmo cinemas organised by city page URL.
-// The `value` field must match the <option value="..."> in the #ddlCinema dropdown.
-// Dropdown values verified against live #ddlCinema options on 2026-03-18.
+// Cinema targets. `value` matches both the #ddlCinema dropdown value and the
+// direct URL path segment: https://yelmocines.es/cartelera/{city}/{value}
+// Verified against live site on 2026-03-18.
 const YELMO_CITY_TARGETS = [
   {
     cityUrl: "https://yelmocines.es/cartelera/madrid",
@@ -47,68 +47,12 @@ const YELMO_CITY_TARGETS = [
       { value: "-premium-lagoh", slug: "yelmo-lagoh", name: "Yelmo Premium Lagoh" },
     ],
   },
-  // Bilbao: Yelmo's /cartelera/bilbao page defaults to showing Madrid cinemas in
-  // the dropdown — Yelmo has no cinemas in Bilbao. Omitted to avoid duplicate data.
+  // Bilbao: Yelmo has no cinemas in Bilbao. Omitted.
 ] as const;
 
-// Noise lines to skip when parsing body text
-const NOISE_PATTERN =
-  /^(Cartelera|Horarios|Formato|Idioma|Experiencia|Día|VOLVER ARRIBA|Estreno|Yelmo|yelmocines|Madrid|Barcelona|Valencia|Sevilla|Bilbao|Cookies|Aviso Legal|Política|Ver más|Comprar|TP|M-|PDC|\+18|NR|MADRID)/i;
-
-/**
- * Parses the body text of the currently-selected Yelmo cinema page.
- */
-function parseShowtimeText(
-  cinemaName: string,
-  cinemaSlug: string,
-  date: string,
-  bodyLines: string[],
-  bookingLinks: Array<{ time: string; href: string }>
-): RawShowtime[] {
-  const results: RawShowtime[] = [];
-  let currentFilm = "";
-  let currentLanguage = "";
-  let linkIndex = 0;
-
-  for (const line of bodyLines) {
-    if (NOISE_PATTERN.test(line) || line.length < 2) {
-      continue;
-    }
-
-    if (/^\d{1,2}:\d{2}/.test(line)) {
-      const times = extractTimes(line);
-      for (const time of times) {
-        const booking =
-          bookingLinks.find((l, i) => i >= linkIndex && l.time === time) ?? bookingLinks[linkIndex];
-        results.push({
-          film_title: currentFilm,
-          cinema_name: cinemaName,
-          cinema_slug: cinemaSlug,
-          chain: "yelmo",
-          show_date: date,
-          show_time: time,
-          raw_format: currentLanguage,
-          raw_language: currentLanguage,
-          price_eur: parseEuroPrice(null),
-          booking_url: booking?.href ?? null,
-        });
-        linkIndex += 1;
-      }
-      continue;
-    }
-
-    if (/\b(VOSE|VOSI|VO\b|3D|IMAX|4DX|ScreenX|Dolby|Doblada|ESPAÑOL|SUBTITUL)/i.test(line)) {
-      currentLanguage = line;
-      continue;
-    }
-
-    if (line && !/^\d+$/.test(line)) {
-      currentFilm = line;
-    }
-  }
-
-  return results.filter((item) => item.film_title);
-}
+// Format/language line detector — same pattern used in both parsers
+const FORMAT_LINE_RE =
+  /\b(VOSE|VOSI|VO\b|3D|IMAX|4DX|ScreenX|Dolby|Doblada|ESPAÑOL|SUBTITUL)/i;
 
 function parseDateOption(value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -118,6 +62,181 @@ function parseDateOption(value: string): string {
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? toIsoDate(new Date()) : toIsoDate(parsed);
+}
+
+/**
+ * Parse showtime data from a single .tituloPelicula DOM block.
+ *
+ * All three pieces of data (title, format, booking links) are extracted from
+ * within the same element, so there is no cross-block state and no positional
+ * link-alignment hack.
+ */
+async function parseFilmBlock(
+  block: Locator,
+  cinemaName: string,
+  cinemaSlug: string,
+  date: string
+): Promise<RawShowtime[]> {
+  const blockText = await block.innerText().catch(() => "");
+  const lines = blockText.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  // Film title: first line that is not a time cluster and not a format label.
+  // Within a .tituloPelicula block the very first meaningful line IS the title.
+  const filmTitle = lines.find(
+    (l) => !/^\d{1,2}:\d{2}/.test(l) && !FORMAT_LINE_RE.test(l) && l.length > 1
+  ) ?? "";
+
+  if (!filmTitle) return [];
+
+  // Booking links scoped to this block — perfect 1:1 alignment with time
+  // lines in the same block. No global linkIndex fragility.
+  const blockLinks = await block.locator("a").evaluateAll((nodes) =>
+    nodes
+      .map((n) => ({
+        time: (n.textContent ?? "").trim(),
+        href: (n as HTMLAnchorElement).href,
+      }))
+      .filter((l) => /^\d{1,2}:\d{2}$/.test(l.time))
+  );
+
+  const results: RawShowtime[] = [];
+  let currentFormat = "";
+  let linkIndex = 0;
+
+  for (const line of lines) {
+    if (line === filmTitle) continue; // already captured above
+
+    if (FORMAT_LINE_RE.test(line)) {
+      currentFormat = line;
+      continue;
+    }
+
+    if (/^\d{1,2}:\d{2}/.test(line)) {
+      for (const time of extractTimes(line)) {
+        const booking =
+          blockLinks.find((l, i) => i >= linkIndex && l.time === time) ??
+          blockLinks[linkIndex];
+        results.push({
+          film_title: filmTitle,
+          cinema_name: cinemaName,
+          cinema_slug: cinemaSlug,
+          chain: "yelmo",
+          show_date: date,
+          show_time: time,
+          raw_format: currentFormat,
+          raw_language: currentFormat,
+          price_eur: parseEuroPrice(null),
+          booking_url: booking?.href ?? null,
+        });
+        linkIndex += 1;
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Fallback: parse the full body text if .tituloPelicula is not present.
+ * Kept from the original implementation — handles any future DOM restructure
+ * where the selector changes but text content still follows the same pattern.
+ */
+const BODY_NOISE_RE =
+  /^(Cartelera|Horarios|Formato|Idioma|Experiencia|Día|VOLVER ARRIBA|Estreno|Yelmo|yelmocines|Madrid|Barcelona|Valencia|Sevilla|Bilbao|Cookies|Aviso Legal|Política|Ver más|Comprar|TP|M-|PDC|\+18|NR|MADRID)/i;
+
+function parseBodyTextFallback(
+  cinemaName: string,
+  cinemaSlug: string,
+  date: string,
+  bodyLines: string[],
+  bookingLinks: Array<{ time: string; href: string }>
+): RawShowtime[] {
+  const results: RawShowtime[] = [];
+  let currentFilm = "";
+  let currentFormat = "";
+  let linkIndex = 0;
+
+  for (const line of bodyLines) {
+    if (BODY_NOISE_RE.test(line) || line.length < 2) continue;
+
+    if (/^\d{1,2}:\d{2}/.test(line)) {
+      for (const time of extractTimes(line)) {
+        const booking =
+          bookingLinks.find((l, i) => i >= linkIndex && l.time === time) ??
+          bookingLinks[linkIndex];
+        results.push({
+          film_title: currentFilm,
+          cinema_name: cinemaName,
+          cinema_slug: cinemaSlug,
+          chain: "yelmo",
+          show_date: date,
+          show_time: time,
+          raw_format: currentFormat,
+          raw_language: currentFormat,
+          price_eur: parseEuroPrice(null),
+          booking_url: booking?.href ?? null,
+        });
+        linkIndex += 1;
+      }
+      continue;
+    }
+
+    if (FORMAT_LINE_RE.test(line)) {
+      currentFormat = line;
+      continue;
+    }
+
+    if (!/^\d+$/.test(line)) {
+      currentFilm = line;
+    }
+  }
+
+  return results.filter((r) => r.film_title);
+}
+
+/**
+ * Extract showtimes for the cinema currently shown on the page.
+ *
+ * Strategy (in priority order):
+ *   1. Scoped .tituloPelicula DOM blocks — each block is one film, links
+ *      are scoped to the block, no global join needed.
+ *   2. Full body text fallback — original approach, used only if the CSS
+ *      selector yields nothing (e.g. Yelmo redesigned their DOM).
+ */
+async function extractShowtimesFromPage(
+  page: Page,
+  cinemaName: string,
+  cinemaSlug: string,
+  date: string
+): Promise<RawShowtime[]> {
+  // Strategy 1: scoped .tituloPelicula extraction
+  const filmBlocks = await page.locator(".tituloPelicula").all();
+
+  if (filmBlocks.length > 0) {
+    console.log(`[yelmo] ${cinemaSlug} ${date} — ${filmBlocks.length} film blocks via .tituloPelicula`);
+    const all: RawShowtime[] = [];
+    for (const block of filmBlocks) {
+      all.push(...await parseFilmBlock(block, cinemaName, cinemaSlug, date));
+    }
+    if (all.length > 0) return all;
+    // Blocks existed but yielded no showtimes — fall through to body text
+    console.log(`[yelmo] ${cinemaSlug} — blocks empty, falling back to body text`);
+  } else {
+    console.log(`[yelmo] ${cinemaSlug} — .tituloPelicula not found, falling back to body text`);
+  }
+
+  // Strategy 2: full body text fallback
+  const bookingLinks = await page.locator("a").evaluateAll((nodes) =>
+    nodes
+      .map((n) => ({
+        time: (n.textContent ?? "").trim(),
+        href: (n as HTMLAnchorElement).href,
+      }))
+      .filter((n) => /^\d{1,2}:\d{2}$/.test(n.time))
+  );
+  const bodyText = await page.locator("body").innerText();
+  const bodyLines = bodyText.split("\n").map((l) => l.trim()).filter(Boolean);
+  return parseBodyTextFallback(cinemaName, cinemaSlug, date, bodyLines, bookingLinks);
 }
 
 export async function scrapeYelmo(): Promise<ChainScrapePayload> {
@@ -139,111 +258,76 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
 
   try {
     for (const cityTarget of YELMO_CITY_TARGETS) {
-      try {
-        await page.goto(cityTarget.cityUrl, {
-          waitUntil: "domcontentloaded",
-          timeout: 45_000,
-        });
+      for (const cinema of cityTarget.cinemas) {
+        // Navigate directly to the cinema's own URL — no #ddlCinema dropdown
+        // needed. The city page pre-selects the cinema server-side.
+        // e.g. https://yelmocines.es/cartelera/madrid/ideal
+        const directUrl = `${cityTarget.cityUrl}/${cinema.value}`;
 
-        // Dismiss cookie banner once (only fires on first page load)
-        await page
-          .getByRole("button", { name: /Permitir todas|Aceptar/i })
-          .click({ timeout: 8_000 })
-          .catch(() => undefined);
-        await randomDelay(1000, 2000);
+        try {
+          await page.goto(directUrl, {
+            waitUntil: "domcontentloaded",
+            timeout: 45_000,
+          });
 
-        // Read actual dropdown values — logs mismatches so we can fix them
-        const availableOptions = await page
-          .locator("#ddlCinema option")
-          .evaluateAll((nodes) =>
-            nodes.map((n) => ({
-              value: (n as HTMLOptionElement).value,
-              text: n.textContent?.trim() ?? "",
-            }))
-          ).catch(() => [] as Array<{ value: string; text: string }>);
+          // Dismiss cookie banner — catch silently if already dismissed or absent
+          await page
+            .getByRole("button", { name: /Permitir todas|Aceptar/i })
+            .click({ timeout: 5_000 })
+            .catch(() => undefined);
 
-        const availableValues = new Set(availableOptions.map((o) => o.value));
-        console.log(`[yelmo] ${cityTarget.cityUrl} — dropdown options:`, JSON.stringify(availableOptions));
+          // Wait for the .tituloPelicula elements that signal rendered content.
+          // This is more reliable than waitForResponse because it waits for
+          // the exact DOM state we need, not a proxy network event.
+          await page
+            .waitForSelector(".tituloPelicula", { timeout: 15_000 })
+            .catch(() => undefined);
+          await randomDelay(300, 600);
 
-        const matchCount = cityTarget.cinemas.filter((c) => availableValues.has(c.value)).length;
-        console.log(`[yelmo] Matched ${matchCount}/${cityTarget.cinemas.length} expected cinemas`);
+          // Read available dates from the date dropdown
+          const dateOptions = await page
+            .locator("#ddlDate option")
+            .evaluateAll((nodes) =>
+              nodes
+                .map((n) => ({
+                  text: n.textContent?.trim() ?? "",
+                  value: (n as HTMLOptionElement).value,
+                }))
+                .filter((n) => n.value && n.value !== "0")
+                .slice(0, SCRAPE_CONFIG.days)
+            );
 
-        for (const cinema of cityTarget.cinemas) {
-          if (!availableValues.has(cinema.value) && availableValues.size > 0) {
-            console.warn(`[yelmo] Dropdown value "${cinema.value}" not found for ${cinema.slug} — skipping`);
-            continue;
-          }
-          try {
-            // selectOption triggers an AJAX/PostBack — wait for the server
-            // response rather than a fixed delay. Falls back to 500ms if no
-            // matching response fires (e.g. dropdown with no data).
-            await Promise.all([
-              page.waitForResponse(
-                (res) => res.url().includes("yelmocines.es") && res.status() < 400,
-                { timeout: 10_000 }
-              ).catch(() => undefined),
-              page.selectOption("#ddlCinema", cinema.value),
-            ]);
-            await randomDelay(500, 800);
+          // Always scrape at least the currently-shown date
+          const datesToScrape =
+            dateOptions.length > 0 ? dateOptions : [{ text: "", value: "" }];
 
-            const dateOptions = await page
-              .locator("#ddlDate option")
-              .evaluateAll((nodes) =>
-                nodes
-                  .map((node) => ({
-                    text: node.textContent?.trim() ?? "",
-                    value: (node as HTMLOptionElement).value,
-                  }))
-                  .filter((node) => node.value && node.value !== "0")
-                  .slice(0, SCRAPE_CONFIG.days)
-              );
-
-            const datesToScrape =
-              dateOptions.length > 0 ? dateOptions : [{ text: "", value: "" }];
-
-            for (const dateOption of datesToScrape) {
-              if (dateOption.value) {
-                await Promise.all([
-                  page.waitForResponse(
-                    (res) => res.url().includes("yelmocines.es") && res.status() < 400,
-                    { timeout: 10_000 }
-                  ).catch(() => undefined),
-                  page.selectOption("#ddlDate", dateOption.value).catch(() => undefined),
-                ]);
-                await randomDelay(500, 800);
-              }
-
-              const bookingLinks = await page.locator("a").evaluateAll((nodes) =>
-                nodes
-                  .map((node) => ({
-                    time: (node.textContent ?? "").trim(),
-                    href: (node as HTMLAnchorElement).href,
-                  }))
-                  .filter((node) => /^\d{1,2}:\d{2}$/.test(node.time))
-              );
-
-              const bodyText = await page.locator("body").innerText();
-              const bodyLines = bodyText
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean);
-
-              const date = dateOption.value
-                ? parseDateOption(dateOption.value)
-                : toIsoDate(new Date());
-
-              rawShowtimes.push(
-                ...parseShowtimeText(cinema.name, cinema.slug, date, bodyLines, bookingLinks)
-              );
+          for (const dateOption of datesToScrape) {
+            if (dateOption.value) {
+              // Select the date — wait for DOM update signalled by .tituloPelicula
+              // changing count (stale elements detach and new ones attach).
+              const prevCount = await page.locator(".tituloPelicula").count();
+              await page.selectOption("#ddlDate", dateOption.value).catch(() => undefined);
+              // Wait until the film block count changes, or fall back to a short delay
+              await page
+                .waitForFunction(
+                  (prev) => document.querySelectorAll(".tituloPelicula").length !== prev,
+                  prevCount,
+                  { timeout: 10_000 }
+                )
+                .catch(() => randomDelay(1000, 1500));
             }
-          } catch {
-            console.warn(`[yelmo] Failed to scrape ${cinema.slug} — skipping`);
-            continue;
+
+            const date = dateOption.value
+              ? parseDateOption(dateOption.value)
+              : toIsoDate(new Date());
+
+            rawShowtimes.push(
+              ...await extractShowtimesFromPage(page, cinema.name, cinema.slug, date)
+            );
           }
+        } catch {
+          console.warn(`[yelmo] Failed to scrape ${cinema.slug} — skipping`);
         }
-      } catch {
-        console.warn(`[yelmo] Failed to load ${cityTarget.cityUrl} — skipping city`);
-        continue;
       }
     }
   } finally {
@@ -251,10 +335,7 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
     await browser.close();
   }
 
-  return {
-    chain: "yelmo",
-    rawShowtimes,
-  };
+  return { chain: "yelmo", rawShowtimes };
 }
 
 if ((process.argv[1] ?? "").includes("yelmo.ts")) {
