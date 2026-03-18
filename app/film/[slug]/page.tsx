@@ -49,34 +49,75 @@ export default async function FilmPage({ params }: FilmPageProps) {
   }
 
   const { film } = data;
-  const structuredData = film.upcoming_sessions.flatMap((dateGroup) =>
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cinehop.eu";
+
+  // Primary Movie entity — enables Google's Movie rich result panel
+  const movieJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Movie",
+    "@id": `${siteUrl}/film/${film.slug}`,
+    name: film.title,
+    ...(film.title_es && film.title_es !== film.title ? { alternateName: film.title_es } : {}),
+    ...(film.poster_url ? { image: film.poster_url } : {}),
+    ...(film.synopsis ? { description: film.synopsis } : {}),
+    ...(film.genre?.length ? { genre: film.genre } : {}),
+    ...(film.runtime_min ? { duration: `PT${film.runtime_min}M` } : {}),
+    ...(film.release_date ? { datePublished: film.release_date } : {}),
+    ...(film.rating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: film.rating,
+            bestRating: 10,
+            worstRating: 1,
+            ratingCount: 1000, // placeholder — OMDB doesn't expose count
+          },
+        }
+      : {}),
+    url: `${siteUrl}/film/${film.slug}`,
+  };
+
+  // ScreeningEvent per showtime — enables Google to show sessions in search
+  const screeningEvents = film.upcoming_sessions.flatMap((dateGroup) =>
     dateGroup.chains.flatMap((chainGroup) =>
       chainGroup.cinemas.flatMap((cinemaGroup) =>
         cinemaGroup.showtimes.map((showtime) => ({
           "@context": "https://schema.org",
-          "@type": "Event",
-          name: `${film.title} - ${showtime.format}`,
+          "@type": "ScreeningEvent",
+          name: `${film.title} — ${showtime.format}`,
+          workPresented: {
+            "@type": "Movie",
+            "@id": `${siteUrl}/film/${film.slug}`,
+            name: film.title,
+          },
           startDate: `${showtime.show_date}T${showtime.show_time}:00`,
           eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
           eventStatus: "https://schema.org/EventScheduled",
           location: {
             "@type": "MovieTheater",
             name: cinemaGroup.cinema.name,
-            address: cinemaGroup.cinema.address
+            address: cinemaGroup.cinema.address ?? undefined,
           },
-          image: film.poster_url ? [film.poster_url] : undefined,
-          offers: showtime.price_eur
+          ...(film.poster_url ? { image: film.poster_url } : {}),
+          inLanguage: showtime.format.startsWith("VO") || showtime.format === "VOSE" ? "en" : "es",
+          ...(showtime.price_eur || showtime.booking_url
             ? {
-                "@type": "Offer",
-                priceCurrency: "EUR",
-                price: showtime.price_eur.toFixed(2),
-                url: showtime.booking_url
+                offers: {
+                  "@type": "Offer",
+                  priceCurrency: "EUR",
+                  ...(showtime.price_eur ? { price: showtime.price_eur.toFixed(2) } : {}),
+                  availability: "https://schema.org/InStock",
+                  ...(showtime.booking_url ? { url: showtime.booking_url } : {}),
+                  validFrom: new Date().toISOString(),
+                },
               }
-            : undefined
+            : {}),
         }))
       )
     )
   );
+
+  const structuredData = [movieJsonLd, ...screeningEvents];
 
   return (
     <>
@@ -153,10 +194,13 @@ export default async function FilmPage({ params }: FilmPageProps) {
             <FilmSidebar totalSessions={film.total_sessions} runtimeMin={film.runtime_min} releaseDate={film.release_date} />
           </aside>
         </div>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
+        {structuredData.map((item, i) => (
+          <script
+            key={i}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+          />
+        ))}
       </main>
       <SiteFooter />
     </>

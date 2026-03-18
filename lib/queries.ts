@@ -23,44 +23,50 @@ function toFilmMap(rows: JoinedShowtimeRow[]): FilmWithShowtimes[] {
     const film = Array.isArray(row.films) ? row.films[0] : row.films;
     const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
 
-    if (!film || !cinema) {
-      continue;
-    }
+    if (!film || !cinema) continue;
 
-    const current = filmMap.get(film.id) ?? {
-      ...film,
-      showtimes: []
-    };
-
-    current.showtimes.push({
-      ...row,
-      cinema
-    });
+    const current = filmMap.get(film.id) ?? { ...film, showtimes: [] };
+    current.showtimes.push({ ...row, cinema });
     filmMap.set(film.id, current);
   }
 
   return [...filmMap.values()];
 }
 
+/**
+ * Builds the base Supabase showtime query for a given date.
+ * City, chain and zone are pushed to the DB via embedded-resource filters
+ * so we don't fetch the whole table and filter in JS.
+ */
+function buildShowtimesQuery(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  date: string,
+  params: Pick<FilmsApiParams, "city" | "chain" | "zone" | "vose" | "format" | "language"> = {}
+) {
+  let query = supabase
+    .from("showtimes")
+    .select(
+      "id, film_id, cinema_id, show_date, show_time, format, language, is_vose, price_eur, booking_url, source_hash, last_seen_at, created_at, films!inner(*), cinemas!inner(*)"
+    )
+    .eq("show_date", date)
+    .order("show_time", { ascending: true });
+
+  // Push high-selectivity filters to the DB — avoids loading thousands of rows into Node
+  if (params.city)  query = query.eq("cinemas.city",  params.city);
+  if (params.chain) query = query.eq("cinemas.chain", params.chain);
+  if (params.zone)  query = query.eq("cinemas.zone",  params.zone);
+  if (params.vose === "true") query = query.eq("is_vose", true);
+  if (params.format)   query = query.eq("format",   params.format);
+  if (params.language) query = query.eq("language", params.language);
+
+  return query;
+}
+
 export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<FilmsApiResponse> {
   const supabase = createServerSupabaseClient();
   let date = resolveQueryDate(params.date);
 
-  let query = buildShowtimesQuery(supabase, date);
-
-  if (params.vose === "true") {
-    query = query.eq("is_vose", true);
-  }
-
-  if (params.format) {
-    query = query.eq("format", params.format);
-  }
-
-  if (params.language) {
-    query = query.eq("language", params.language);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await buildShowtimesQuery(supabase, date, params);
 
   if (error) {
     throw new Error(`Unable to fetch films: ${error.message}`);
@@ -68,42 +74,44 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
 
   let rows = (data ?? []) as unknown as JoinedShowtimeRow[];
 
+  // Fallback: if no data for the requested date, show the most recent available date.
+  // Apply the same city filter so Barcelona users don't see Madrid fallback data.
   if (rows.length === 0 && (!params.date || params.date === "today" || params.date === "tomorrow")) {
-    const { data: latest } = await supabase
+    const latestQuery = supabase
       .from("showtimes")
-      .select("show_date")
+      .select("show_date, cinemas!inner(city)")
       .order("show_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+
+    // Narrow fallback to the same city if one was requested
+    if (params.city) {
+      latestQuery.eq("cinemas.city", params.city);
+    }
+
+    const { data: latest } = await latestQuery.maybeSingle();
 
     if (latest?.show_date) {
-      date = latest.show_date;
-      const { data: fallbackData, error: fallbackError } = await buildShowtimesQuery(supabase, date);
+      date = latest.show_date as string;
+      const { data: fallbackData, error: fallbackError } = await buildShowtimesQuery(
+        supabase,
+        date,
+        params
+      );
       if (!fallbackError) {
         rows = (fallbackData ?? []) as unknown as JoinedShowtimeRow[];
       }
     }
   }
 
-  if (params.city) {
-    rows = rows.filter((row) => {
-      const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
-      return cinema?.city === params.city;
-    });
+  // Secondary in-memory filters for fields that can't be pushed to PostgREST
+  // (price, free-text search). vose/format/language are already filtered at DB level
+  // but we keep them here as a safety net in case the embedded filter behaves differently.
+  if (params.vose === "true") {
+    rows = rows.filter((row) => row.is_vose);
   }
 
-  if (params.chain) {
-    rows = rows.filter((row) => {
-      const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
-      return cinema?.chain === params.chain;
-    });
-  }
-
-  if (params.zone) {
-    rows = rows.filter((row) => {
-      const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
-      return cinema?.zone === params.zone;
-    });
+  if (params.format) {
+    rows = rows.filter((row) => row.format === params.format);
   }
 
   if (params.price_max) {
@@ -124,21 +132,12 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
     });
   }
 
-  if (params.vose === "true") {
-    rows = rows.filter((row) => row.is_vose);
-  }
-
-  if (params.format) {
-    rows = rows.filter((row) => row.format === params.format);
-  }
-
   const films = toFilmMap(rows)
     .map(buildFilmCardData)
     .sort((left, right) => {
       if (right.totalSessions !== left.totalSessions) {
         return right.totalSessions - left.totalSessions;
       }
-
       return left.title.localeCompare(right.title, "es");
     });
 
@@ -153,61 +152,42 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
   };
 }
 
-// Sessions not refreshed within 8 hours (≈2 scrape cycles at 3h cadence + buffer) are
-// considered stale and hidden from users — they may have been cancelled by the cinema.
-const STALE_AFTER_MS = 8 * 60 * 60 * 1000;
-
-function freshnessThreshold(): string {
-  return new Date(Date.now() - STALE_AFTER_MS).toISOString();
-}
-
-function buildShowtimesQuery(supabase: ReturnType<typeof createServerSupabaseClient>, date: string) {
-  return supabase
-    .from("showtimes")
-    .select(
-      "id, film_id, cinema_id, show_date, show_time, format, language, is_vose, price_eur, booking_url, source_hash, last_seen_at, created_at, films!inner(*), cinemas!inner(*)"
-    )
-    .eq("show_date", date)
-    .order("show_time", { ascending: true });
-}
-
 export async function getFilmBySlug(slug: string): Promise<FilmApiResponse | null> {
   const supabase = createServerSupabaseClient();
   const today = new Date().toISOString().slice(0, 10);
 
-  const { data: film, error: filmError } = await supabase.from("films").select("*").eq("slug", slug).maybeSingle();
+  const { data: film, error: filmError } = await supabase
+    .from("films")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
 
-  if (filmError) {
-    throw new Error("Unable to fetch film.");
-  }
-
-  if (!film) {
-    return null;
-  }
+  if (filmError) throw new Error("Unable to fetch film.");
+  if (!film) return null;
 
   const { data: showtimes, error: showtimesError } = await supabase
     .from("showtimes")
-    .select("id, film_id, cinema_id, show_date, show_time, format, language, is_vose, price_eur, booking_url, source_hash, last_seen_at, created_at, cinemas!inner(*)")
+    .select(
+      "id, film_id, cinema_id, show_date, show_time, format, language, is_vose, price_eur, booking_url, source_hash, last_seen_at, created_at, cinemas!inner(*)"
+    )
     .eq("film_id", film.id)
     .gte("show_date", today)
     .order("show_date", { ascending: true })
     .order("show_time", { ascending: true });
 
-  if (showtimesError) {
-    throw new Error("Unable to fetch showtimes for film.");
-  }
+  if (showtimesError) throw new Error("Unable to fetch showtimes for film.");
 
   const detailed = groupFilmDetail({
     ...film,
-    showtimes: ((showtimes ?? []) as unknown as Array<Showtime & { cinemas: Cinema | Cinema[] }>).map((showtime) => ({
+    showtimes: (
+      (showtimes ?? []) as unknown as Array<Showtime & { cinemas: Cinema | Cinema[] }>
+    ).map((showtime) => ({
       ...showtime,
       cinema: Array.isArray(showtime.cinemas) ? showtime.cinemas[0] : showtime.cinemas
     }))
   });
 
-  return {
-    film: detailed
-  };
+  return { film: detailed };
 }
 
 export const API_CACHE_HEADERS = {

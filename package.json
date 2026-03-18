@@ -12,9 +12,11 @@
     "scrape:cinesa": "npx tsx scrapers/cinesa.ts",
     "scrape:yelmo": "npx tsx scrapers/yelmo.ts",
     "scrape:kinepolis": "npx tsx scrapers/kinepolis.ts",
+    "enrich": "npx tsx scrapers/enrich-posters.ts",
     "postinstall": "playwright install chromium"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.44.0",
     "@supabase/supabase-js": "^2.57.4",
     "@vercel/analytics": "^1.5.0",
     "clsx": "^2.1.1",

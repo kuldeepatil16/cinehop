@@ -14,6 +14,7 @@ import type { City, FilmCardData, FilmsApiResponse } from "@/lib/types";
 
 interface HomepageClientProps {
   initialData: FilmsApiResponse;
+  initialCity?: City;
 }
 
 function getDateOptions(
@@ -38,12 +39,12 @@ function getDateOptions(
   });
 }
 
-export function HomepageClient({ initialData }: HomepageClientProps) {
+export function HomepageClient({ initialData, initialCity = "madrid" }: HomepageClientProps) {
   const { t } = useLanguage();
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("today");
-  const [city, setCity] = useState<City>("madrid");
+  const [city, setCity] = useState<City>(initialCity);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(["vose"]));
   const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(null);
   const [isPending, startTransition] = useTransition();

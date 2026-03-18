@@ -17,53 +17,134 @@ on:
           - yelmo
           - kinepolis
 
+# Shared step definition via YAML anchors
+env:
+  NODE_VERSION: '20'
+
 jobs:
-  scrape:
+  # ─── Cinesa ───────────────────────────────────────────────────────────────
+  scrape-cinesa:
+    if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'cinesa' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
+      - uses: actions/cache@v4
+        id: pw-cache-cinesa
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.pw-cache-cinesa.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
 
-      - name: Install Chromium system deps (if cache hit)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache-cinesa.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      - name: Run scrapers
+      - name: Scrape Cinesa
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+        run: npm run scrape:cinesa
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Cinesa scrape failed at $(date -u)"
+
+  # ─── Yelmo ────────────────────────────────────────────────────────────────
+  scrape-yelmo:
+    if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'yelmo' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: actions/cache@v4
+        id: pw-cache-yelmo
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.pw-cache-yelmo.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache-yelmo.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Scrape Yelmo
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+        run: npm run scrape:yelmo
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Yelmo scrape failed at $(date -u)"
+
+  # ─── Kinepolis ────────────────────────────────────────────────────────────
+  scrape-kinepolis:
+    if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'kinepolis' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: actions/cache@v4
+        id: pw-cache-kinepolis
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.pw-cache-kinepolis.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache-kinepolis.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Scrape Kinepolis
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
           KINEPOLIS_HEADFUL: '1'
-        run: |
-          if [ -n "${{ github.event.inputs.chain }}" ]; then
-            xvfb-run -a npm run scrape:${{ github.event.inputs.chain }}
-          else
-            xvfb-run -a npm run scrape
-          fi
+        run: xvfb-run -a npm run scrape:kinepolis
 
-      - name: Report result
-        if: always()
-        run: echo "Scrape job completed with status ${{ job.status }}"
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Kinepolis scrape failed at $(date -u)"

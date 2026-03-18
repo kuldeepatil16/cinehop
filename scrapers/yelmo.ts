@@ -154,7 +154,27 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
           .catch(() => undefined);
         await randomDelay(1000, 2000);
 
+        // Read actual dropdown values — logs mismatches so we can fix them
+        const availableOptions = await page
+          .locator("#ddlCinema option")
+          .evaluateAll((nodes) =>
+            nodes.map((n) => ({
+              value: (n as HTMLOptionElement).value,
+              text: n.textContent?.trim() ?? "",
+            }))
+          ).catch(() => [] as Array<{ value: string; text: string }>);
+
+        const availableValues = new Set(availableOptions.map((o) => o.value));
+        console.log(`[yelmo] ${cityTarget.cityUrl} — dropdown options:`, JSON.stringify(availableOptions));
+
+        const matchCount = cityTarget.cinemas.filter((c) => availableValues.has(c.value)).length;
+        console.log(`[yelmo] Matched ${matchCount}/${cityTarget.cinemas.length} expected cinemas`);
+
         for (const cinema of cityTarget.cinemas) {
+          if (!availableValues.has(cinema.value) && availableValues.size > 0) {
+            console.warn(`[yelmo] Dropdown value "${cinema.value}" not found for ${cinema.slug} — skipping`);
+            continue;
+          }
           try {
             await page.selectOption("#ddlCinema", cinema.value);
             await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);

@@ -1,0 +1,33 @@
+name: Enrich Film Metadata
+
+on:
+  schedule:
+    # Nightly at 02:00 UTC — low traffic, OMDB quota fresh
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Enrich film posters and metadata
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+        run: npx tsx scrapers/enrich-posters.ts
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Film enrichment failed at $(date -u)"
