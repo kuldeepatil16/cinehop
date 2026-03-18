@@ -36,8 +36,7 @@ async function run(): Promise<void> {
   loadLocalEnv();
 
   if (!process.env.OMDB_API_KEY) {
-    console.error("[enrich] OMDB_API_KEY is not set — cannot enrich. Exiting.");
-    process.exitCode = 1;
+    console.warn("[enrich] OMDB_API_KEY is not set — skipping enrichment.");
     return;
   }
 
