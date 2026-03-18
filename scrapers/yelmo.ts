@@ -174,11 +174,8 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
             continue;
           }
           try {
-            await Promise.all([
-              page.waitForNavigation({ waitUntil: "load", timeout: 15_000 }).catch(() => undefined),
-              page.selectOption("#ddlCinema", cinema.value),
-            ]);
-            await randomDelay(500, 1000);
+            await page.selectOption("#ddlCinema", cinema.value);
+            await randomDelay(2000, 3000);
 
             const dateOptions = await page
               .locator("#ddlDate option")
@@ -197,11 +194,8 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
 
             for (const dateOption of datesToScrape) {
               if (dateOption.value) {
-                await Promise.all([
-                  page.waitForNavigation({ waitUntil: "load", timeout: 10_000 }).catch(() => undefined),
-                  page.selectOption("#ddlDate", dateOption.value).catch(() => undefined),
-                ]);
-                await randomDelay(500, 1000);
+                await page.selectOption("#ddlDate", dateOption.value).catch(() => undefined);
+                await randomDelay(2000, 3000);
               }
 
               const bookingLinks = await page.locator("a").evaluateAll((nodes) =>

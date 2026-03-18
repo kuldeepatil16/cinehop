@@ -110,8 +110,7 @@ async function scrapeCinema(
       timeout: 45_000
     });
     // networkidle ensures the SPA has finished its initial API calls before we read the store.
-    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
-    await randomDelay(300, 700);
+    await randomDelay(6000, 9000);
   } catch {
     detach();
     console.warn(`[cinesa] Failed to navigate to ${cinema.slug}`);
