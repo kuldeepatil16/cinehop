@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 
+import { DateBar, buildDateOptions } from "@/components/DateBar";
 import { FilterBar } from "@/components/FilterBar";
 import { FilmGrid } from "@/components/FilmGrid";
 import { SearchBar } from "@/components/SearchBar";
@@ -9,34 +10,12 @@ import { SessionModal } from "@/components/SessionModal";
 import { StatBar } from "@/components/StatBar";
 import { Ticker } from "@/components/Ticker";
 import { useLanguage } from "@/components/LanguageProvider";
-import { CITY_LABELS, SUPPORTED_CITIES } from "@/lib/constants";
+import { CITY_LABELS, SCRAPE_CONFIG, SUPPORTED_CITIES } from "@/lib/constants";
 import type { City, FilmCardData, FilmsApiResponse } from "@/lib/types";
 
 interface HomepageClientProps {
   initialData: FilmsApiResponse;
   initialCity?: City;
-}
-
-function getDateOptions(
-  t: (key: "today" | "tomorrow" | "day_2" | "day_3") => string
-): Array<{ value: string; label: string }> {
-  return [0, 1, 2, 3].map((offset) => {
-    if (offset === 0) {
-      return { value: "today", label: t("today") };
-    }
-
-    if (offset === 1) {
-      return { value: "tomorrow", label: t("tomorrow") };
-    }
-
-    const dateValue = new Date();
-    dateValue.setDate(dateValue.getDate() + offset);
-
-    return {
-      value: dateValue.toISOString().slice(0, 10),
-      label: t(offset === 2 ? "day_2" : "day_3")
-    };
-  });
 }
 
 export function HomepageClient({ initialData, initialCity = "madrid" }: HomepageClientProps) {
@@ -50,7 +29,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
   const [isPending, startTransition] = useTransition();
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const dateOptions = useMemo(() => getDateOptions(t), [t]);
+  const dateOptions = useMemo(() => buildDateOptions(SCRAPE_CONFIG.days), []);
   const cheapestSession = useMemo(() => {
     const prices = data.films.flatMap((film) =>
       film.showtimes.map((showtime) => showtime.price_eur).filter((value): value is number => value !== null)
@@ -195,13 +174,15 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
         </div>
         <SearchBar
           query={query}
-          date={date}
           city={city}
-          dateOptions={dateOptions}
           onQueryChange={handleQueryChange}
-          onDateChange={handleDateChange}
           onCityChange={handleCityChange}
           onSubmit={reload}
+        />
+        <DateBar
+          selected={date}
+          options={dateOptions}
+          onChange={handleDateChange}
         />
         <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
         <div className="section-header">

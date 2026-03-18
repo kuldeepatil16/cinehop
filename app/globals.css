@@ -276,6 +276,79 @@ a {
   cursor: pointer;
 }
 
+/* ── Date bar ──────────────────────────────────────── */
+.date-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.date-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.date-pill {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 64px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--cream);
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.date-pill:hover:not(.active) {
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+  background: var(--paper);
+}
+
+.date-pill.active {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.date-pill-day {
+  font-family: var(--font-dm-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.date-pill-num {
+  font-family: var(--font-bebas), sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.date-pill-month {
+  font-family: var(--font-dm-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.date-pill.active .date-pill-day,
+.date-pill.active .date-pill-num,
+.date-pill.active .date-pill-month {
+  color: white;
+}
+
+/* grow search field to fill remaining width */
+.search-field--grow {
+  flex: 2;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
