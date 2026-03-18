@@ -47,14 +47,8 @@ const YELMO_CITY_TARGETS = [
       { value: "-premium-lagoh", slug: "yelmo-lagoh", name: "Yelmo Premium Lagoh" },
     ],
   },
-  {
-    // NOTE: Bilbao dropdown showed only "-premium-lagoh" on 2026-03-18 which may be
-    // a page-load issue (first option had value "0"). Re-verify if no Bilbao sessions appear.
-    cityUrl: "https://yelmocines.es/cartelera/bilbao",
-    cinemas: [
-      { value: "-premium-lagoh", slug: "yelmo-bilbao-megapark", name: "Yelmo Bilbao" },
-    ],
-  },
+  // Bilbao: Yelmo's /cartelera/bilbao page defaults to showing Madrid cinemas in
+  // the dropdown — Yelmo has no cinemas in Bilbao. Omitted to avoid duplicate data.
 ] as const;
 
 // Noise lines to skip when parsing body text
