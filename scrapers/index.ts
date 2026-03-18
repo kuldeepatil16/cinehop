@@ -154,20 +154,22 @@ async function runChain(
       .filter((showtime): showtime is NormalisedShowtime => Boolean(showtime));
 
     const titleToFilmId = await upsertFilms(payload, normalised);
-    let sessionsNew = 0;
-    let sessionsUpdated = 0;
+    const now = new Date().toISOString();
 
-    for (const showtime of normalised) {
-      const cinemaId = cinemaMap.get(showtime.cinema_slug);
-      const filmId = titleToFilmId.get(showtime.film_title);
-
-      if (!cinemaId || !filmId) {
-        continue;
-      }
-
-      const row = {
-        film_id: filmId,
-        cinema_id: cinemaId,
+    // Build rows, skipping any that are missing film/cinema IDs or have
+    // clearly invalid data (unresolved HO-IDs, malformed times).
+    const TIME_RE = /^\d{2}:\d{2}$/;
+    const rows = normalised
+      .filter((showtime) => {
+        const cinemaId = cinemaMap.get(showtime.cinema_slug);
+        const filmId = titleToFilmId.get(showtime.film_title);
+        const validTime = TIME_RE.test(showtime.show_time);
+        const validTitle = showtime.film_title.length > 0 && !/^HO\d+$/.test(showtime.film_title);
+        return cinemaId && filmId && validTime && validTitle;
+      })
+      .map((showtime) => ({
+        film_id: titleToFilmId.get(showtime.film_title)!,
+        cinema_id: cinemaMap.get(showtime.cinema_slug)!,
         show_date: showtime.show_date,
         show_time: showtime.show_time,
         format: showtime.format,
@@ -175,26 +177,27 @@ async function runChain(
         price_eur: showtime.price_eur,
         booking_url: showtime.booking_url,
         source_hash: showtime.source_hash,
-        last_seen_at: new Date().toISOString()
-      };
+        last_seen_at: now,
+      }));
 
+    // Batch upserts in chunks of 200 to stay within PostgREST limits
+    // and avoid individual round-trips per showtime (N+1 → N/200 + 1).
+    const BATCH_SIZE = 200;
+    let sessionsNew = 0;
+    let sessionsUpdated = 0;
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE);
       const { data } = await supabase
         .from("showtimes")
-        .upsert([row], {
-          onConflict: "cinema_id,film_id,show_date,show_time,format"
-        })
+        .upsert(batch, { onConflict: "cinema_id,film_id,show_date,show_time,format" })
         .select("id");
-
-      if (data && data.length > 0) {
-        sessionsUpdated += 1;
-      } else {
-        sessionsNew += 1;
-      }
+      sessionsNew += data?.length ?? 0;
+      sessionsUpdated += batch.length - (data?.length ?? 0);
     }
 
     const result: ScrapeResult = {
       chain: payload.chain,
-      status: normalised.length > 0 ? "success" : "partial",
+      status: rows.length > 0 ? "success" : "partial",
       sessions_found: normalised.length,
       sessions_new: sessionsNew,
       sessions_updated: sessionsUpdated,

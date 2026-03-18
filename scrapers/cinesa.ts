@@ -109,8 +109,14 @@ async function scrapeCinema(
       waitUntil: "domcontentloaded",
       timeout: 45_000
     });
-    // networkidle ensures the SPA has finished its initial API calls before we read the store.
-    await randomDelay(6000, 9000);
+    // Wait for the SPA to fire its first showtimes API call — this is the real
+    // signal the page is ready. A fixed delay is a guess; this is an event.
+    // Catch so we still attempt to read whatever the store has (e.g. cinema
+    // with 0 shows today, or a slow runner that fires after 25s).
+    await page.waitForResponse(
+      (res) => res.url().includes("/showtimes/by-business-date"),
+      { timeout: 25_000 }
+    ).catch(() => undefined);
   } catch {
     detach();
     console.warn(`[cinesa] Failed to navigate to ${cinema.slug}`);

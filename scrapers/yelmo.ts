@@ -174,8 +174,17 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
             continue;
           }
           try {
-            await page.selectOption("#ddlCinema", cinema.value);
-            await randomDelay(2000, 3000);
+            // selectOption triggers an AJAX/PostBack — wait for the server
+            // response rather than a fixed delay. Falls back to 500ms if no
+            // matching response fires (e.g. dropdown with no data).
+            await Promise.all([
+              page.waitForResponse(
+                (res) => res.url().includes("yelmocines.es") && res.status() < 400,
+                { timeout: 10_000 }
+              ).catch(() => undefined),
+              page.selectOption("#ddlCinema", cinema.value),
+            ]);
+            await randomDelay(500, 800);
 
             const dateOptions = await page
               .locator("#ddlDate option")
@@ -194,8 +203,14 @@ export async function scrapeYelmo(): Promise<ChainScrapePayload> {
 
             for (const dateOption of datesToScrape) {
               if (dateOption.value) {
-                await page.selectOption("#ddlDate", dateOption.value).catch(() => undefined);
-                await randomDelay(2000, 3000);
+                await Promise.all([
+                  page.waitForResponse(
+                    (res) => res.url().includes("yelmocines.es") && res.status() < 400,
+                    { timeout: 10_000 }
+                  ).catch(() => undefined),
+                  page.selectOption("#ddlDate", dateOption.value).catch(() => undefined),
+                ]);
+                await randomDelay(500, 800);
               }
 
               const bookingLinks = await page.locator("a").evaluateAll((nodes) =>
