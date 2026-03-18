@@ -97,53 +97,62 @@ async function scrapeCinema(
   cinema: (typeof CINESA_TARGETS)[number],
   filmById: Map<string, string>
 ): Promise<RawShowtime[]> {
-  const allShowtimesData: CinesaShowtimeResponse[] = [];
+  // Attach listener BEFORE navigation so we never miss the initial response,
+  // regardless of how long after domcontentloaded the VWC API call fires.
+  const { store: showtimesStore, detach } = attachResponseListener<CinesaShowtimeResponse>(
+    page,
+    (url) => url.includes("/showtimes/by-business-date")
+  );
 
-  // Navigate and wait for the initial (today) showtimes API response
   try {
-    const [initialResponse] = await Promise.all([
-      page.waitForResponse(
-        (res) => res.url().includes("/showtimes/by-business-date"),
-        { timeout: 30_000 }
-      ),
-      page.goto(`https://www.cinesa.es/cines/${cinema.path}/`, {
-        waitUntil: "domcontentloaded",
-        timeout: 45_000
-      })
-    ]);
-    allShowtimesData.push((await initialResponse.json()) as CinesaShowtimeResponse);
+    await page.goto(`https://www.cinesa.es/cines/${cinema.path}/`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000
+    });
+    // networkidle ensures the SPA has finished its initial API calls before we read the store.
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    await randomDelay(300, 700);
   } catch {
-    console.warn(`[cinesa] Failed to load initial showtimes for ${cinema.slug}`);
+    detach();
+    console.warn(`[cinesa] Failed to navigate to ${cinema.slug}`);
     return [];
   }
 
-  await randomDelay(300, 700);
+  if (showtimesStore.size === 0) {
+    detach();
+    console.warn(`[cinesa] No initial showtimes captured for ${cinema.slug}`);
+    return [];
+  }
 
-  // Date tabs: Cinesa renders them as buttons/links like "vie 20 mar", "sáb 21 mar"
-  // Select all tab buttons then click each one, waiting for the API response each time.
+  // Date tabs: Cinesa renders them as "vie 20 mar", "sáb 21 mar" etc.
   const dateButtons = page.locator("[class*='date'], [class*='tab'], [class*='day'], button, a").filter({
     hasText: /\d{1,2}\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/i
   });
   const buttonCount = await dateButtons.count();
 
-  // index starts at 0 here — these buttons are ONLY future dates (today already loaded above)
+  // For each future date tab, click and wait for the new response to appear in the store.
   for (let index = 0; index < Math.min(buttonCount, SCRAPE_CONFIG.days - 1); index += 1) {
     try {
-      const [dateResponse] = await Promise.all([
+      const prevSize = showtimesStore.size;
+      await Promise.all([
         page.waitForResponse(
           (res) => res.url().includes("/showtimes/by-business-date"),
-          { timeout: 15_000 }
+          { timeout: 12_000 }
         ),
         dateButtons.nth(index).click({ timeout: 5_000 })
       ]);
-      allShowtimesData.push((await dateResponse.json()) as CinesaShowtimeResponse);
+      if (showtimesStore.size === prevSize) {
+        console.warn(`[cinesa] Date tab ${index} response not captured for ${cinema.slug}`);
+      }
     } catch {
       console.warn(`[cinesa] Missed date tab ${index} for ${cinema.slug}`);
     }
     await randomDelay(250, 500);
   }
 
-  return allShowtimesData.flatMap((response) =>
+  detach();
+
+  return [...showtimesStore.values()].flatMap((response) =>
     response.showtimes.map((showtime) => ({
       film_title: filmById.get(showtime.filmId) ?? showtime.filmId,
       cinema_name: cinema.name,
