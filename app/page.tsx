@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const initialData = await getFilmsForDate({
     date: "today",
-    city: "madrid",
-    vose: "true"
+    city: "madrid"
   });
 
   return (

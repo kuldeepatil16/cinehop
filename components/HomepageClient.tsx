@@ -191,7 +191,11 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
             {data.stats.film_count} films - {data.stats.session_count} sessions
           </span>
         </div>
-        <FilmGrid films={data.films} onOpen={setSelectedFilm} />
+        <FilmGrid
+          films={data.films}
+          onOpen={setSelectedFilm}
+          hasActiveFilters={activeFilters.size > 0 || query.trim().length > 0}
+        />
       </main>
       <SessionModal film={selectedFilm} onClose={() => setSelectedFilm(null)} />
     </>
