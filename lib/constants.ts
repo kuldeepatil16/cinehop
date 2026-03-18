@@ -1,13 +1,13 @@
-import type { Chain, Zone } from "./types";
+import type { Chain, City, Zone } from "./types";
 
 export const SITE_NAME = "CineHop";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-export const CITY = {
+export const DEFAULT_CITY = {
   name: "Madrid",
   country: "ES",
-  timezone: "Europe/Madrid",
+  timezone: "Europe/Madrid"
 } as const;
-export const MADRID_TIMEZONE = CITY.timezone;
+export const MADRID_TIMEZONE = DEFAULT_CITY.timezone;
 export const SPAIN_LOCALE = "es-ES";
 export const DEFAULT_CACHE_CONTROL = "s-maxage=300, stale-while-revalidate=60";
 export const DEFAULT_USER_AGENT =
@@ -16,43 +16,49 @@ export const DEFAULT_USER_AGENT =
 export const CHAINS: Record<Chain, { label: string; slug: Chain }> = {
   cinesa: { label: "Cinesa", slug: "cinesa" },
   yelmo: { label: "Yelmo Cines", slug: "yelmo" },
-  kinepolis: { label: "Kinepolis", slug: "kinepolis" },
+  kinepolis: { label: "Kinepolis", slug: "kinepolis" }
 };
 export const CHAIN_LABELS: Record<Chain, string> = {
   cinesa: "Cinesa",
   yelmo: "Yelmo",
-  kinepolis: "Kinepolis",
+  kinepolis: "Kinepolis"
 };
+export const CITY_LABELS: Record<City, string> = {
+  madrid: "Madrid",
+  barcelona: "Barcelona",
+  valencia: "Valencia",
+  sevilla: "Sevilla",
+  bilbao: "Bilbao"
+};
+export const SUPPORTED_CITIES: readonly City[] = ["madrid", "barcelona", "valencia", "sevilla", "bilbao"];
 
 export const CHAIN_TARGETS: Record<Chain, { root: string; showtimes: string }> = {
   cinesa: { root: "https://www.cinesa.es", showtimes: "https://www.cinesa.es/cines/" },
   yelmo: { root: "https://yelmocines.es", showtimes: "https://yelmocines.es/cartelera/madrid" },
-  kinepolis: { root: "https://kinepolis.es", showtimes: "https://kinepolis.es/carteleras/madrid" },
+  kinepolis: { root: "https://kinepolis.es", showtimes: "https://kinepolis.es/?complex=KMAD" }
 };
 export const CHAIN_URLS: Record<Chain, string> = {
   cinesa: CHAIN_TARGETS.cinesa.showtimes,
   yelmo: CHAIN_TARGETS.yelmo.showtimes,
-  kinepolis: CHAIN_TARGETS.kinepolis.showtimes,
+  kinepolis: CHAIN_TARGETS.kinepolis.showtimes
 };
 
 export const SCRAPE_CONFIG = {
   minDelayMs: 1000,
   maxDelayMs: 3000,
-  days: 2, // today + tomorrow minimum; increase to 7 when the chain pages allow it cheaply
+  days: 4,
   navigationTimeoutMs: 45_000,
-  selectorTimeoutMs: 20_000,
+  selectorTimeoutMs: 20_000
 } as const;
 
-// A small UA pool is enough; the goal is "not a bot default".
 export const USER_AGENTS: readonly string[] = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 ];
 
 export const MADRID_ZONES: readonly Zone[] = ["centro", "norte", "sur", "este", "oeste"];
 
-// Cinema slugs we seed and expect scrapers to produce.
 export const MADRID_CINEMA_SLUGS: Record<Chain, readonly string[]> = {
   cinesa: [
     "cinesa-la-gavia",
@@ -63,7 +69,7 @@ export const MADRID_CINEMA_SLUGS: Record<Chain, readonly string[]> = {
     "cinesa-principe-pio",
     "cinesa-proyecciones",
     "cinesa-las-rosas",
-    "cinesa-la-moraleja",
+    "cinesa-la-moraleja"
   ],
   yelmo: [
     "yelmo-ideal",
@@ -73,23 +79,23 @@ export const MADRID_CINEMA_SLUGS: Record<Chain, readonly string[]> = {
     "yelmo-planetocio",
     "yelmo-rivas-h2o",
     "yelmo-tres-aguas",
-    "yelmo-plaza-norte",
+    "yelmo-plaza-norte"
   ],
-  kinepolis: ["kinepolis-madrid"],
+  kinepolis: ["kinepolis-madrid"]
 };
 export const MADRID_CINESA_TARGETS = MADRID_CINEMA_SLUGS.cinesa;
 export const MADRID_YELMO_TARGETS = MADRID_CINEMA_SLUGS.yelmo;
 export const MADRID_KINEPOLIS_TARGETS = MADRID_CINEMA_SLUGS.kinepolis;
 
 export const OMDB = {
-  baseUrl: "https://www.omdbapi.com/",
+  baseUrl: "https://www.omdbapi.com/"
 } as const;
 export const OMDB_API_URL = OMDB.baseUrl;
 
 export const HOMEPAGE_META = {
-  title: "CineHop — Películas en Madrid hoy | Cartelera de cine",
+  title: "CineHop - Cartelera en Espana | Cine y sesiones",
   description:
-    "Encuentra todas las sesiones de cine en Madrid — Cinesa, Yelmo y Kinepolis. Filtros VOSE, IMAX, 4DX y precios. Sin sorpresas.",
+    "Compara sesiones de cine en Madrid, Barcelona, Valencia, Sevilla y Bilbao. Filtros VOSE, IMAX, 4DX y enlaces directos de compra."
 };
 
 export const FILTER_GROUPS = [
@@ -102,16 +108,16 @@ export const FILTER_GROUPS = [
       { id: "imax", label: "IMAX" },
       { id: "4dx", label: "4DX" },
       { id: "3d", label: "3D" },
-      { id: "screenx", label: "ScreenX" },
-    ],
+      { id: "screenx", label: "ScreenX" }
+    ]
   },
   {
     id: "language",
     label: "Language",
     pills: [
       { id: "lang-en", label: "English" },
-      { id: "lang-es", label: "Español" },
-    ],
+      { id: "lang-es", label: "Espanol" }
+    ]
   },
   {
     id: "chain",
@@ -119,16 +125,15 @@ export const FILTER_GROUPS = [
     pills: [
       { id: "cinesa", label: "Cinesa" },
       { id: "yelmo", label: "Yelmo" },
-      { id: "kinepolis", label: "Kinepolis" },
-    ],
+      { id: "kinepolis", label: "Kinepolis" }
+    ]
   },
   {
     id: "price",
     label: "Price",
-    pills: [{ id: "price", label: "Under €9" }],
-  },
+    pills: [{ id: "price", label: "Under EUR9" }]
+  }
 ] as const;
 
-
 export const FOOTER_COPY =
-  "CineHop Madrid · Data refreshed every 2h · Not affiliated with any cinema chain";
+  "CineHop Spain · Data refreshed every 2h · Not affiliated with any cinema chain";

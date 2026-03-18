@@ -10,7 +10,7 @@ export function SiteFooter() {
   const { language } = useLanguage();
   const copy =
     language === "es"
-      ? "CineHop Madrid · Datos actualizados cada 2h · No afiliado a ninguna cadena"
+      ? "CineHop Espana · Datos actualizados cada 2h · No afiliado a ninguna cadena"
       : FOOTER_COPY;
 
   return (

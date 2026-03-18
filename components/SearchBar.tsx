@@ -1,24 +1,27 @@
 "use client";
 
+import { CITY_LABELS, SUPPORTED_CITIES } from "@/lib/constants";
 import { useLanguage } from "@/components/LanguageProvider";
 
 interface SearchBarProps {
   query: string;
   date: string;
-  zone: string;
+  city: string;
+  dateOptions: Array<{ value: string; label: string }>;
   onQueryChange: (value: string) => void;
   onDateChange: (value: string) => void;
-  onZoneChange: (value: string) => void;
+  onCityChange: (value: string) => void;
   onSubmit: () => void;
 }
 
 export function SearchBar({
   query,
   date,
-  zone,
+  city,
+  dateOptions,
   onQueryChange,
   onDateChange,
-  onZoneChange,
+  onCityChange,
   onSubmit
 }: SearchBarProps) {
   const { t } = useLanguage();
@@ -37,19 +40,21 @@ export function SearchBar({
       <div className="search-field">
         <label htmlFor="date-filter">{t("date")}</label>
         <select id="date-filter" value={date} onChange={(event) => onDateChange(event.target.value)}>
-          <option value="today">{t("today")}</option>
-          <option value="tomorrow">{t("tomorrow")}</option>
+          {dateOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
       <div className="search-field">
-        <label htmlFor="zone-filter">{t("zone")}</label>
-        <select id="zone-filter" value={zone} onChange={(event) => onZoneChange(event.target.value)}>
-          <option value="">{t("all_madrid")}</option>
-          <option value="centro">Centro</option>
-          <option value="norte">Norte</option>
-          <option value="sur">Sur</option>
-          <option value="este">Este</option>
-          <option value="oeste">Oeste</option>
+        <label htmlFor="city-filter">{t("city")}</label>
+        <select id="city-filter" value={city} onChange={(event) => onCityChange(event.target.value)}>
+          {SUPPORTED_CITIES.map((supportedCity) => (
+            <option key={supportedCity} value={supportedCity}>
+              {CITY_LABELS[supportedCity]}
+            </option>
+          ))}
         </select>
       </div>
       <button className="search-button" type="button" onClick={onSubmit}>

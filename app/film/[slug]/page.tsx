@@ -28,13 +28,13 @@ export async function generateMetadata({ params }: FilmPageProps): Promise<Metad
   }
 
   return {
-    title: `${data.film.title} showtimes Madrid | CineHop`,
-    description: data.film.synopsis ?? `All upcoming ${data.film.title} sessions in Madrid.`,
+    title: `${data.film.title} showtimes | CineHop`,
+    description: data.film.synopsis ?? `All upcoming ${data.film.title} sessions on CineHop.`,
     alternates: {
       canonical: toCanonicalUrl(`/film/${params.slug}`)
     },
     openGraph: {
-      title: `${data.film.title} showtimes Madrid | CineHop`,
+      title: `${data.film.title} showtimes | CineHop`,
       description: data.film.synopsis ?? undefined,
       images: data.film.poster_url ? [{ url: data.film.poster_url }] : undefined
     }
@@ -93,7 +93,7 @@ export default async function FilmPage({ params }: FilmPageProps) {
               )}
             </div>
             <div>
-              <div className="mono-eyebrow">Madrid sessions</div>
+              <div className="mono-eyebrow">Live sessions</div>
               <h1 className="detail-title">{film.title}</h1>
               <div className="mb-4 flex flex-wrap gap-2">
                 {(film.genre ?? []).map((genre) => (

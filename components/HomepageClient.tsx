@@ -9,10 +9,33 @@ import { SessionModal } from "@/components/SessionModal";
 import { StatBar } from "@/components/StatBar";
 import { Ticker } from "@/components/Ticker";
 import { useLanguage } from "@/components/LanguageProvider";
-import type { FilmCardData, FilmsApiResponse } from "@/lib/types";
+import { CITY_LABELS, SUPPORTED_CITIES } from "@/lib/constants";
+import type { City, FilmCardData, FilmsApiResponse } from "@/lib/types";
 
 interface HomepageClientProps {
   initialData: FilmsApiResponse;
+}
+
+function getDateOptions(
+  t: (key: "today" | "tomorrow" | "day_2" | "day_3") => string
+): Array<{ value: string; label: string }> {
+  return [0, 1, 2, 3].map((offset) => {
+    if (offset === 0) {
+      return { value: "today", label: t("today") };
+    }
+
+    if (offset === 1) {
+      return { value: "tomorrow", label: t("tomorrow") };
+    }
+
+    const dateValue = new Date();
+    dateValue.setDate(dateValue.getDate() + offset);
+
+    return {
+      value: dateValue.toISOString().slice(0, 10),
+      label: t(offset === 2 ? "day_2" : "day_3")
+    };
+  });
 }
 
 export function HomepageClient({ initialData }: HomepageClientProps) {
@@ -20,38 +43,35 @@ export function HomepageClient({ initialData }: HomepageClientProps) {
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("today");
-  const [zone, setZone] = useState("");
+  const [city, setCity] = useState<City>("madrid");
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(["vose"]));
   const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const dateOptions = useMemo(() => getDateOptions(t), [t]);
   const cheapestSession = useMemo(() => {
     const prices = data.films.flatMap((film) =>
       film.showtimes.map((showtime) => showtime.price_eur).filter((value): value is number => value !== null)
     );
+
     if (prices.length === 0) {
       return t("cheapest_fallback");
     }
-    return `€${Math.min(...prices).toFixed(2)} in Madrid`;
-  }, [data.films, t]);
 
-  function buildParams(
-    overrideFilters?: Set<string>,
-    overrideDate?: string,
-    overrideZone?: string
-  ): URLSearchParams {
+    return `€${Math.min(...prices).toFixed(2)} in ${CITY_LABELS[city]}`;
+  }, [city, data.films, t]);
+
+  function buildParams(overrideFilters?: Set<string>, overrideDate?: string, overrideCity?: City): URLSearchParams {
     const filters = overrideFilters ?? activeFilters;
-    const d = overrideDate ?? date;
-    const z = overrideZone ?? zone;
-
+    const nextDate = overrideDate ?? date;
+    const nextCity = overrideCity ?? city;
     const params = new URLSearchParams();
-    params.set("date", d);
+
+    params.set("date", nextDate);
+    params.set("city", nextCity);
 
     if (query.trim()) {
       params.set("q", query.trim());
-    }
-    if (z) {
-      params.set("zone", z);
     }
     if (filters.has("vose")) {
       params.set("vose", "true");
@@ -123,9 +143,10 @@ export function HomepageClient({ initialData }: HomepageClientProps) {
     fetchFilms(buildParams(undefined, value));
   }
 
-  function handleZoneChange(value: string): void {
-    setZone(value);
-    fetchFilms(buildParams(undefined, undefined, value));
+  function handleCityChange(value: string): void {
+    const nextCity = SUPPORTED_CITIES.includes(value as City) ? (value as City) : "madrid";
+    setCity(nextCity);
+    fetchFilms(buildParams(undefined, undefined, nextCity));
   }
 
   return (
@@ -149,10 +170,11 @@ export function HomepageClient({ initialData }: HomepageClientProps) {
         <SearchBar
           query={query}
           date={date}
-          zone={zone}
+          city={city}
+          dateOptions={dateOptions}
           onQueryChange={setQuery}
           onDateChange={handleDateChange}
-          onZoneChange={handleZoneChange}
+          onCityChange={handleCityChange}
           onSubmit={reload}
         />
         <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />

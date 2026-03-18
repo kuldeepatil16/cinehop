@@ -1,5 +1,7 @@
 export type Chain = "cinesa" | "yelmo" | "kinepolis";
 
+export type City = "madrid" | "barcelona" | "valencia" | "sevilla" | "bilbao";
+
 export type Zone = "centro" | "norte" | "sur" | "este" | "oeste";
 
 export type ShowFormat =
@@ -37,6 +39,7 @@ export interface Film {
 export interface Cinema {
   id: string;
   chain: Chain;
+  city: City | null;
   name: string;
   slug: string;
   address: string | null;
@@ -206,6 +209,7 @@ export interface FilmDetailData extends Film {
 
 export interface FilmsApiParams {
   date?: string;
+  city?: City;
   vose?: string;
   format?: ShowFormat;
   chain?: Chain;

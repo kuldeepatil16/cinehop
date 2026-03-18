@@ -1,21 +1,28 @@
 import { chromium, type Page } from "playwright";
 
-import { DEFAULT_USER_AGENT, MADRID_TIMEZONE, MADRID_CINESA_TARGETS, SPAIN_LOCALE, CHAIN_TARGETS } from "@/lib/constants";
+import { CHAIN_TARGETS, DEFAULT_USER_AGENT, MADRID_TIMEZONE, SCRAPE_CONFIG, SPAIN_LOCALE } from "@/lib/constants";
 import type { ChainScrapePayload, RawShowtime } from "@/lib/types";
 import { randomDelay } from "@/scrapers/normalise";
 import { isPathAllowed } from "@/scrapers/robots-check";
 
-const CINESA_PATHS: Record<(typeof MADRID_CINESA_TARGETS)[number], string> = {
-  "cinesa-la-gavia": "la-gavia",
-  "cinesa-manoteras": "manoteras",
-  "cinesa-mendez-alvaro": "mendez-alvaro",
-  "cinesa-nassica": "nassica",
-  "cinesa-parquesur": "parquesur",
-  "cinesa-principe-pio": "principe-pio",
-  "cinesa-proyecciones": "proyecciones",
-  "cinesa-las-rosas": "las-rosas",
-  "cinesa-la-moraleja": "la-moraleja"
-};
+const CINESA_TARGETS = [
+  { city: "madrid", slug: "cinesa-la-gavia", path: "la-gavia", name: "Cinesa La Gavia" },
+  { city: "madrid", slug: "cinesa-manoteras", path: "manoteras", name: "Cinesa Manoteras" },
+  { city: "madrid", slug: "cinesa-mendez-alvaro", path: "mendez-alvaro", name: "Cinesa Mendez Alvaro" },
+  { city: "madrid", slug: "cinesa-nassica", path: "nassica", name: "Cinesa Nassica" },
+  { city: "madrid", slug: "cinesa-parquesur", path: "parquesur", name: "Cinesa Parquesur" },
+  { city: "madrid", slug: "cinesa-principe-pio", path: "principe-pio", name: "Cinesa Principe Pio" },
+  { city: "madrid", slug: "cinesa-proyecciones", path: "proyecciones", name: "Cinesa Proyecciones" },
+  { city: "madrid", slug: "cinesa-las-rosas", path: "las-rosas", name: "Cinesa Las Rosas" },
+  { city: "madrid", slug: "cinesa-la-moraleja", path: "la-moraleja", name: "Cinesa La Moraleja" },
+  { city: "barcelona", slug: "cinesa-diagonal", path: "diagonal", name: "Cinesa Diagonal" },
+  { city: "barcelona", slug: "cinesa-diagonal-mar", path: "diagonal-mar", name: "Cinesa Diagonal Mar" },
+  { city: "barcelona", slug: "cinesa-barnasud", path: "barnasud", name: "Cinesa Barnasud" },
+  { city: "valencia", slug: "cinesa-bonaire", path: "bonaire", name: "Cinesa Bonaire" },
+  { city: "sevilla", slug: "cinesa-camas", path: "camas", name: "Cinesa Camas" },
+  { city: "bilbao", slug: "cinesa-zubiarte", path: "zubiarte", name: "Cinesa Zubiarte" },
+  { city: "bilbao", slug: "cinesa-max-ocio", path: "max-ocio", name: "Cinesa Max Ocio" }
+] as const;
 
 interface CinesaFilm {
   id: string;
@@ -39,19 +46,18 @@ interface CinesaShowtimeResponse {
 
 interface ListenerHandle<T> {
   store: Map<string, T>;
-  /** Remove this specific listener from the page without touching others. */
   detach: () => void;
 }
 
-function attachResponseListener<T>(
-  page: Page,
-  matcher: (url: string) => boolean
-): ListenerHandle<T> {
+function attachResponseListener<T>(page: Page, matcher: (url: string) => boolean): ListenerHandle<T> {
   const store = new Map<string, T>();
 
   const handler = async (response: { url: () => string; json: () => Promise<unknown> }) => {
     const url = response.url();
-    if (!matcher(url)) return;
+    if (!matcher(url)) {
+      return;
+    }
+
     try {
       store.set(url, (await response.json()) as T);
     } catch {
@@ -64,20 +70,20 @@ function attachResponseListener<T>(
 }
 
 function inferFormat(attributeIds: string[] | undefined): string {
-  if (!attributeIds || attributeIds.length === 0) return "Doblada";
+  if (!attributeIds || attributeIds.length === 0) {
+    return "Doblada";
+  }
+
   const joined = attributeIds.join(" ");
 
   if (joined.includes("0000000068")) {
     return "VOSE";
   }
-  if (joined.includes("0000000072")) {
+  if (joined.includes("0000000072") || joined.includes("0000000108")) {
     return "IMAX";
   }
   if (joined.includes("0000000073")) {
     return "3D";
-  }
-  if (joined.includes("0000000108")) {
-    return "IMAX";
   }
   if (joined.includes("0000000109")) {
     return "ScreenX";
@@ -88,27 +94,26 @@ function inferFormat(attributeIds: string[] | undefined): string {
 
 async function scrapeCinema(
   page: Page,
-  cinemaSlug: (typeof MADRID_CINESA_TARGETS)[number],
+  cinema: (typeof CINESA_TARGETS)[number],
   filmById: Map<string, string>
 ): Promise<RawShowtime[]> {
-  // Attach a fresh showtimes listener for this cinema only.
-  // We use page.off to remove ONLY this listener afterwards — preserving the global
-  // films listener which must stay alive across all cinema iterations.
   const { store: showtimesStore, detach: detachShowtimes } = attachResponseListener<CinesaShowtimeResponse>(
     page,
     (url) => url.includes("/showtimes/by-business-date")
   );
 
-  await page.goto(`https://www.cinesa.es/cines/${CINESA_PATHS[cinemaSlug]}/`, {
+  await page.goto(`https://www.cinesa.es/cines/${cinema.path}/`, {
     waitUntil: "domcontentloaded",
-    timeout: 45000
+    timeout: 45_000
   });
-  await randomDelay();
+  await randomDelay(300, 700);
 
-  const dateButtons = page.locator("button, a").filter({ hasText: /mar|abr|may|jun|jul|ago|sep|oct|nov|dic/i });
-  if ((await dateButtons.count()) > 1) {
-    await dateButtons.nth(1).click({ timeout: 5000 }).catch(() => undefined);
-    await randomDelay();
+  const dateButtons = page.locator("button, a").filter({ hasText: /ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic/i });
+  const buttonCount = await dateButtons.count();
+
+  for (let index = 1; index < Math.min(buttonCount, SCRAPE_CONFIG.days); index += 1) {
+    await dateButtons.nth(index).click({ timeout: 5_000 }).catch(() => undefined);
+    await randomDelay(250, 500);
   }
 
   const showtimesResponses = [...showtimesStore.values()];
@@ -117,13 +122,13 @@ async function scrapeCinema(
   return showtimesResponses.flatMap((response) =>
     response.showtimes.map((showtime) => ({
       film_title: filmById.get(showtime.filmId) ?? showtime.filmId,
-      cinema_name: cinemaSlug.replace(/^cinesa-/, "").replace(/-/g, " "),
-      cinema_slug: cinemaSlug,
+      cinema_name: cinema.name,
+      cinema_slug: cinema.slug,
       chain: "cinesa",
       show_date: showtime.schedule.businessDate,
       show_time: showtime.schedule.startsAt.slice(11, 16),
       raw_format: inferFormat(showtime.attributeIds),
-      raw_language: null, // Language inferred during normalisation from format
+      raw_language: null,
       price_eur: null,
       booking_url: `https://www.cinesa.es/compra/butacas/?showtimeId=${showtime.id}`
     }))
@@ -133,7 +138,7 @@ async function scrapeCinema(
 export async function scrapeCinesa(): Promise<ChainScrapePayload> {
   const root = CHAIN_TARGETS.cinesa.root;
   if (!await isPathAllowed(root, "/cines/")) {
-    console.warn("[cinesa] robots.txt disallows /cines/ — skipping");
+    console.warn("[cinesa] robots.txt disallows /cines/ - skipping");
     return { chain: "cinesa", rawShowtimes: [] };
   }
 
@@ -148,8 +153,6 @@ export async function scrapeCinesa(): Promise<ChainScrapePayload> {
   const rawShowtimes: RawShowtime[] = [];
 
   try {
-    // Capture ANY VWC films endpoint — including the global /films and per-site
-    // /films?siteIds=027 variants. Using includes("/v1/films") catches both.
     const { store: filmsStore } = attachResponseListener<{ films: CinesaFilm[] }>(
       page,
       (url) => url.includes("cinesa.es") && url.includes("/films")
@@ -166,53 +169,46 @@ export async function scrapeCinesa(): Promise<ChainScrapePayload> {
       }
     }
 
-    for (const cinemaSlug of MADRID_CINESA_TARGETS) {
+    for (const cinema of CINESA_TARGETS) {
       try {
-        const results = await scrapeCinema(page, cinemaSlug, filmById);
+        const results = await scrapeCinema(page, cinema, filmById);
         refreshFilmById();
-        rawShowtimes.push(...results.map((r) => ({
-          ...r,
-          film_title: /^HO\d+$/.test(r.film_title) ? (filmById.get(r.film_title) ?? r.film_title) : r.film_title
-        })));
+        rawShowtimes.push(
+          ...results.map((result) => ({
+            ...result,
+            film_title: /^HO\d+$/.test(result.film_title)
+              ? (filmById.get(result.film_title) ?? result.film_title)
+              : result.film_title
+          }))
+        );
       } catch {
         continue;
       }
     }
 
-    // Final pass: resolve any HO IDs that still weren't captured via interception.
-    // The VWC API accepts individual film IDs directly.
     refreshFilmById();
-    const unresolvedIds = [...new Set(
-      rawShowtimes
-        .map((r) => r.film_title)
-        .filter((t) => /^HO\d+$/.test(t))
-    )];
+    const unresolvedIds = [...new Set(rawShowtimes.map((result) => result.film_title).filter((title) => /^HO\d+$/.test(title)))];
 
-    if (unresolvedIds.length > 0) {
-      console.log(`[cinesa] Resolving ${unresolvedIds.length} unmatched film IDs via API...`);
-      for (const filmId of unresolvedIds) {
-        try {
-          const res = await fetch(
-            `https://vwc.cinesa.es/WSVistaWebClient/ocapi/v1/films/${filmId}`,
-            { headers: { Accept: "application/json", "User-Agent": DEFAULT_USER_AGENT } }
-          );
-          if (res.ok) {
-            const data = await res.json() as { id?: string; title?: { text?: string } };
-            if (data?.title?.text) {
-              filmById.set(filmId, data.title.text);
-            }
+    for (const filmId of unresolvedIds) {
+      try {
+        const response = await fetch(`https://vwc.cinesa.es/WSVistaWebClient/ocapi/v1/films/${filmId}`, {
+          headers: { Accept: "application/json", "User-Agent": DEFAULT_USER_AGENT }
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as { title?: { text?: string } };
+          if (data.title?.text) {
+            filmById.set(filmId, data.title.text);
           }
-        } catch {
-          // Best-effort — unresolved IDs stay as-is
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+      } catch {
+        // Best effort.
       }
+    }
 
-      // Apply resolved titles to the collected showtimes
-      for (const r of rawShowtimes) {
-        if (/^HO\d+$/.test(r.film_title) && filmById.has(r.film_title)) {
-          r.film_title = filmById.get(r.film_title)!;
-        }
+    for (const result of rawShowtimes) {
+      if (/^HO\d+$/.test(result.film_title) && filmById.has(result.film_title)) {
+        result.film_title = filmById.get(result.film_title)!;
       }
     }
   } finally {

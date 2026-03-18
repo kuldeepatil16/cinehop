@@ -85,6 +85,13 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
     }
   }
 
+  if (params.city) {
+    rows = rows.filter((row) => {
+      const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;
+      return cinema?.city === params.city;
+    });
+  }
+
   if (params.chain) {
     rows = rows.filter((row) => {
       const cinema = Array.isArray(row.cinemas) ? row.cinemas[0] : row.cinemas;

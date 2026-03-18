@@ -7,6 +7,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const params: FilmsApiParams = {
     date: searchParams.get("date") ?? undefined,
+    city: (searchParams.get("city") ?? undefined) as FilmsApiParams["city"],
     vose: searchParams.get("vose") ?? undefined,
     format: (searchParams.get("format") ?? undefined) as FilmsApiParams["format"],
     chain: (searchParams.get("chain") ?? undefined) as FilmsApiParams["chain"],

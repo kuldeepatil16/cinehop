@@ -56,11 +56,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+          KINEPOLIS_HEADFUL: '1'
         run: |
           if [ -n "${{ github.event.inputs.chain }}" ]; then
-            npm run scrape:${{ github.event.inputs.chain }}
+            xvfb-run -a npm run scrape:${{ github.event.inputs.chain }}
           else
-            npm run scrape
+            xvfb-run -a npm run scrape
           fi
 
       - name: Report result
