@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { TimeButton } from "@/components/TimeButton";
 import { FilmBreadcrumb, FilmSidebar } from "@/components/TranslatedBlocks";
+import { buildPosterSrc } from "@/lib/posters";
 import { getFilmBySlug } from "@/lib/queries";
 import { toCanonicalUrl } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export default async function FilmPage({ params }: FilmPageProps) {
   }
 
   const { film } = data;
+  const posterSrc = buildPosterSrc(film.poster_url);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cinehop.eu";
 
   // Primary Movie entity — enables Google's Movie rich result panel
@@ -127,8 +129,8 @@ export default async function FilmPage({ params }: FilmPageProps) {
         <section className="detail-hero">
           <div className="detail-hero-inner">
             <div className="film-poster h-[320px] w-[220px]">
-              {film.poster_url ? (
-                <Image src={film.poster_url} alt={film.title} width={220} height={320} className="h-full w-full object-cover" />
+              {posterSrc ? (
+                <Image src={posterSrc} alt={film.title} width={220} height={320} className="h-full w-full object-cover" />
               ) : (
                 <div className="film-placeholder h-[320px] w-[220px]">{film.title.slice(0, 1)}</div>
               )}
@@ -176,6 +178,7 @@ export default async function FilmPage({ params }: FilmPageProps) {
                               chain={chainGroup.chain}
                               filmSlug={film.slug}
                               format={showtime.format}
+                              showFormat
                             />
                           ))}
                         </div>

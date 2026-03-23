@@ -86,7 +86,8 @@ CROSS JOIN LATERAL (
     ('16:10','VOSE','en',9.20),
     ('18:30','Doblada','es',8.50),
     ('20:45','IMAX','es',12.90),
-    ('22:15','VO','en',9.90)
+    ('22:15','VO','en',9.90),
+    ('23:00','VOSI','hi',10.20)
 ) AS t(show_time, format, language, price_eur)
 JOIN films f ON f.slug IN ('captain-america-brave-new-world','mickey-17','bridget-jones-mad-about-the-boy','novocaine','the-alto-knights')
 JOIN cinemas c ON c.slug IN (

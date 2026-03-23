@@ -34,6 +34,20 @@ const dictionary: Dictionary = {
   sessions: { es: "Sesiones", en: "Sessions" },
   vose_sessions: { es: "Sesiones VOSE", en: "VOSE sessions" },
   now_showing: { es: "En cartel", en: "Now Showing" },
+  recommended_movies: { es: "Peliculas recomendadas", en: "Recommended Movies" },
+  showtimes_for: { es: "Sesiones para", en: "Showtimes for" },
+  booking_board_copy: {
+    es: "Elige una pelicula, compara cines y reserva con enlaces directos.",
+    en: "Pick a film, compare cinemas, and book through direct links."
+  },
+  discovery_live: { es: "Descubrimiento en directo", en: "Live discovery" },
+  discovery_copy: {
+    es: "Busca por titulo, fija el dia y filtra por formato o idioma sin perder una vista clara de la cartelera.",
+    en: "Search by title, lock the day, and filter by format or language without losing a clear view of what is playing."
+  },
+  formats_on_buttons: { es: "Formato en cada boton", en: "Format on every button" },
+  direct_booking_live: { es: "Reserva directa en vivo", en: "Live direct booking" },
+  session_count_label: { es: "sesiones", en: "sessions" },
   refreshing: { es: "Actualizando...", en: "Refreshing..." },
   no_films: { es: "No se encontraron peliculas", en: "No films found" },
   adjust_filters: { es: "Prueba a cambiar los filtros o la busqueda.", en: "Try adjusting your filters or search." },

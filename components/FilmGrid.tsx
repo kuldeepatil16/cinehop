@@ -7,10 +7,11 @@ import { useLanguage } from "@/components/LanguageProvider";
 interface FilmGridProps {
   films: FilmCardData[];
   onOpen: (film: FilmCardData) => void;
+  selectedFilmId?: string | null;
   hasActiveFilters?: boolean;
 }
 
-export function FilmGrid({ films, onOpen, hasActiveFilters }: FilmGridProps) {
+export function FilmGrid({ films, onOpen, selectedFilmId, hasActiveFilters }: FilmGridProps) {
   const { t } = useLanguage();
 
   if (films.length === 0) {
@@ -29,7 +30,7 @@ export function FilmGrid({ films, onOpen, hasActiveFilters }: FilmGridProps) {
   return (
     <div className="films-grid">
       {films.map((film) => (
-        <FilmCard key={film.id} film={film} onOpen={onOpen} />
+        <FilmCard key={film.id} film={film} onOpen={onOpen} isActive={film.id === selectedFilmId} />
       ))}
     </div>
   );

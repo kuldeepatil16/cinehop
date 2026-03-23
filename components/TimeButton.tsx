@@ -12,9 +12,19 @@ interface TimeButtonProps {
   chain: Chain;
   filmSlug: string;
   format: ShowFormat;
+  showFormat?: boolean;
 }
 
-export function TimeButton({ href, label, price, showtimeId, chain, filmSlug, format }: TimeButtonProps) {
+export function TimeButton({
+  href,
+  label,
+  price,
+  showtimeId,
+  chain,
+  filmSlug,
+  format,
+  showFormat = false
+}: TimeButtonProps) {
   function handleClick(_: MouseEvent<HTMLAnchorElement>): void {
     if (!href) return;
 
@@ -22,25 +32,30 @@ export function TimeButton({ href, label, price, showtimeId, chain, filmSlug, fo
       showtime_id: showtimeId,
       cinema_chain: chain,
       film_slug: filmSlug,
-      session_format: format,
+      session_format: format
     });
 
-    // Use keepalive fetch — works reliably with JSON content-type
-    // sendBeacon doesn't support custom headers so we use fetch with keepalive instead
     void fetch("/api/track", {
       method: "POST",
       keepalive: true,
       headers: { "content-type": "application/json" },
-      body: payload,
+      body: payload
     }).catch(() => {
-      // Fire and forget — never block the navigation
+      // Fire-and-forget analytics only.
     });
   }
 
   return (
-    <a className="time-pill" href={href ?? "#"} target="_blank" rel="noreferrer" onClick={handleClick}>
-      <span>{label}</span>
-      {price !== null && price !== undefined ? <span className="price-chip">€{price.toFixed(2)}</span> : null}
+    <a
+      className={`time-pill ${showFormat ? "time-pill--booking" : ""}`}
+      href={href ?? "#"}
+      target="_blank"
+      rel="noreferrer"
+      onClick={handleClick}
+    >
+      <span className="time-pill-label">{label}</span>
+      {showFormat ? <span className="time-pill-format">{format}</span> : null}
+      {price !== null && price !== undefined ? <span className="price-chip">EUR{price.toFixed(2)}</span> : null}
     </a>
   );
 }

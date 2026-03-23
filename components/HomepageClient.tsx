@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { DateBar, buildDateOptions } from "@/components/DateBar";
 import { FilterBar } from "@/components/FilterBar";
@@ -19,13 +19,13 @@ interface HomepageClientProps {
 }
 
 export function HomepageClient({ initialData, initialCity = "madrid" }: HomepageClientProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("today");
   const [city, setCity] = useState<City>(initialCity);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(null);
+  const [selectedFilm, setSelectedFilm] = useState<FilmCardData | null>(initialData.films[0] ?? null);
   const [isPending, startTransition] = useTransition();
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -41,6 +41,41 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
 
     return `EUR${Math.min(...prices).toFixed(2)} in ${CITY_LABELS[city]}`;
   }, [city, data.films, t]);
+
+  const rankedFilms = useMemo(() => {
+    return [...data.films].sort((left, right) => {
+      const leftScore =
+        (left.rating ?? 0) * 100 +
+        left.totalSessions * 3 +
+        (left.formats.includes("VOSE") ? 12 : 0) +
+        (left.formats.includes("VOSI") ? 8 : 0);
+      const rightScore =
+        (right.rating ?? 0) * 100 +
+        right.totalSessions * 3 +
+        (right.formats.includes("VOSE") ? 12 : 0) +
+        (right.formats.includes("VOSI") ? 8 : 0);
+
+      if (rightScore !== leftScore) {
+        return rightScore - leftScore;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
+  }, [data.films]);
+
+  useEffect(() => {
+    setSelectedFilm((current) => {
+      if (rankedFilms.length === 0) {
+        return null;
+      }
+
+      if (!current) {
+        return rankedFilms[0];
+      }
+
+      return rankedFilms.find((film) => film.id === current.id) ?? rankedFilms[0];
+    });
+  }, [rankedFilms]);
 
   function buildParams(
     overrideFilters?: Set<string>,
@@ -66,6 +101,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
     }
 
     const formatMap = new Map<string, string>([
+      ["vosi", "VOSI"],
       ["vo", "VO"],
       ["imax", "IMAX"],
       ["4dx", "4DX"],
@@ -87,7 +123,8 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
 
     const languageMap = new Map<string, string>([
       ["lang-en", "en"],
-      ["lang-es", "es"]
+      ["lang-es", "es"],
+      ["lang-hi", "hi"]
     ]);
     for (const [filterId, language] of languageMap) {
       if (filters.has(filterId)) {
@@ -161,7 +198,7 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
         sessionCount={data.stats.session_count}
         voseCount={data.stats.vose_count}
         cheapestSession={cheapestSession}
-        topFilm={data.films[0]?.title ?? t("topfilm_fallback")}
+        topFilm={rankedFilms[0]?.title ?? t("topfilm_fallback")}
       />
       <StatBar
         filmCount={data.stats.film_count}
@@ -169,35 +206,47 @@ export function HomepageClient({ initialData, initialCity = "madrid" }: Homepage
         voseCount={data.stats.vose_count}
       />
       <main className="main-content cine-container">
-        <div className="mb-6" id="ad-slot-top">
-          <div className="ad-slot">Ad slot top</div>
-        </div>
-        <SearchBar
-          query={query}
-          city={city}
-          onQueryChange={handleQueryChange}
-          onCityChange={handleCityChange}
-          onSubmit={reload}
-        />
-        <DateBar
-          selected={date}
-          options={dateOptions}
-          onChange={handleDateChange}
-        />
-        <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+        <section className="discovery-shell">
+          <div className="discovery-header">
+            <div className="section-kicker">{t("discovery_live")}</div>
+            <p className="discovery-copy">{t("discovery_copy")}</p>
+          </div>
+          <SearchBar
+            query={query}
+            city={city}
+            onQueryChange={handleQueryChange}
+            onCityChange={handleCityChange}
+            onSubmit={reload}
+          />
+          <DateBar
+            selected={date}
+            options={dateOptions}
+            onChange={handleDateChange}
+          />
+          <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+        </section>
+        {selectedFilm ? <SessionModal film={selectedFilm} /> : null}
         <div className="section-header">
-          <span className="section-title">{isPending ? t("refreshing") : t("now_showing")}</span>
+          <div>
+            <div className="section-kicker">{t("now_showing")}</div>
+            <span className="section-title">
+              {isPending ? t("refreshing") : t("recommended_movies")}
+            </span>
+            <p className="section-copy">{t("booking_board_copy")}</p>
+          </div>
           <span className="section-count">
-            {data.stats.film_count} films - {data.stats.session_count} sessions
+            {language === "es"
+              ? `${data.stats.film_count} peliculas / ${data.stats.session_count} sesiones`
+              : `${data.stats.film_count} films / ${data.stats.session_count} sessions`}
           </span>
         </div>
         <FilmGrid
-          films={data.films}
+          films={rankedFilms}
           onOpen={setSelectedFilm}
+          selectedFilmId={selectedFilm?.id ?? null}
           hasActiveFilters={activeFilters.size > 0 || query.trim().length > 0}
         />
       </main>
-      <SessionModal film={selectedFilm} onClose={() => setSelectedFilm(null)} />
     </>
   );
 }

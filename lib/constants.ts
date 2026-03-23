@@ -104,6 +104,7 @@ export const FILTER_GROUPS = [
     label: "Format",
     pills: [
       { id: "vose", label: "VOSE", prominent: true },
+      { id: "vosi", label: "VOSI" },
       { id: "vo", label: "VO" },
       { id: "imax", label: "IMAX" },
       { id: "4dx", label: "4DX" },
@@ -116,7 +117,8 @@ export const FILTER_GROUPS = [
     label: "Language",
     pills: [
       { id: "lang-en", label: "English" },
-      { id: "lang-es", label: "Espanol" }
+      { id: "lang-es", label: "Espanol" },
+      { id: "lang-hi", label: "Hindi" }
     ]
   },
   {

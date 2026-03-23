@@ -25,6 +25,7 @@ const LANGUAGE_RULES: Array<{ pattern: RegExp; language: string }> = [
   { pattern: /\bespa[nñ]ol|castellano|cast\.\b/i, language: "es" },
   { pattern: /\bfranc[eé]s|french\b/i, language: "fr" },
   { pattern: /\balem[aá]n|german\b/i, language: "de" },
+  { pattern: /\bhindi\b/i, language: "hi" },
   { pattern: /\bjapon[eé]s|japanese\b/i, language: "ja" },
   { pattern: /\bcoreano|korean\b/i, language: "ko" },
   { pattern: /\bportugu[eé]s|portuguese\b/i, language: "pt" },

@@ -52,7 +52,7 @@ const YELMO_CITY_TARGETS = [
 
 // Format/language line detector — same pattern used in both parsers
 const FORMAT_LINE_RE =
-  /\b(VOSE|VOSI|VO\b|3D|IMAX|4DX|ScreenX|Dolby|Doblada|ESPAÑOL|SUBTITUL)/i;
+  /\b(V\.?O\.?S\.?E\.?|V\.?O\.?S\.?I\.?|VO\b|3D|IMAX|4DX|ScreenX|Dolby|Doblada|ESPAÑOL|SUBTITUL|Hindi|English|Ingl[eé]s)\b/i;
 
 function parseDateOption(value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;

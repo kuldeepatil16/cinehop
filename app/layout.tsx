@@ -35,13 +35,15 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const shouldLoadAnalytics = process.env.VERCEL === "1";
+
   return (
     <html lang="es">
       <body className={`${bebasNeue.variable} ${dmSans.variable} ${dmMono.variable}`}>
         <LanguageProvider>
           {children}
           <CookieBanner />
-          <Analytics />
+          {shouldLoadAnalytics ? <Analytics /> : null}
         </LanguageProvider>
       </body>
     </html>
