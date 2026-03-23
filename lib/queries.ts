@@ -12,8 +12,8 @@ import type {
 import {
   buildFilmCardData,
   getDateInTimezone,
+  getShowtimeFreshnessThreshold,
   groupFilmDetail,
-  isDateWithinWindow,
   resolveQueryDate
 } from "@/lib/utils";
 
@@ -70,6 +70,7 @@ function buildShowtimesQuery(
       "id, film_id, cinema_id, show_date, show_time, format, language, is_vose, price_eur, booking_url, source_hash, last_seen_at, created_at, films!inner(*), cinemas!inner(*)"
     )
     .eq("show_date", date)
+    .gte("last_seen_at", getShowtimeFreshnessThreshold())
     .order("show_time", { ascending: true });
 
   if (params.city) query = query.eq("cinemas.city", params.city);
@@ -84,7 +85,7 @@ function buildShowtimesQuery(
 
 export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<FilmsApiResponse> {
   const supabase = createServerSupabaseClient();
-  let date = resolveQueryDate(params.date);
+  const date = resolveQueryDate(params.date);
 
   const { data, error } = await buildShowtimesQuery(supabase, date, params);
 
@@ -93,45 +94,6 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
   }
 
   let rows = (data ?? []) as unknown as JoinedShowtimeRow[];
-
-  // Fallback only within the active 2-4 day booking window. Never jump back
-  // to historical data just to avoid an empty state.
-  if (
-    rows.length === 0 &&
-    (!params.date || params.date === "today" || params.date === "tomorrow" || isDateWithinWindow(date))
-  ) {
-    const windowStart = getDateInTimezone(new Date(), MADRID_TIMEZONE);
-    const windowEnd = getDateInTimezone(
-      new Date(Date.now() + (SCRAPE_CONFIG.days - 1) * 24 * 60 * 60 * 1000),
-      MADRID_TIMEZONE
-    );
-
-    let fallbackQuery = supabase
-      .from("showtimes")
-      .select("show_date, cinemas!inner(city)")
-      .gte("show_date", windowStart)
-      .lte("show_date", windowEnd)
-      .order("show_date", { ascending: true })
-      .limit(1);
-
-    if (params.city) {
-      fallbackQuery = fallbackQuery.eq("cinemas.city", params.city);
-    }
-
-    const { data: fallbackTarget } = await fallbackQuery.maybeSingle();
-
-    if (fallbackTarget?.show_date && isDateWithinWindow(fallbackTarget.show_date as string)) {
-      date = fallbackTarget.show_date as string;
-      const { data: fallbackData, error: fallbackError } = await buildShowtimesQuery(
-        supabase,
-        date,
-        params
-      );
-      if (!fallbackError) {
-        rows = (fallbackData ?? []) as unknown as JoinedShowtimeRow[];
-      }
-    }
-  }
 
   if (params.vose === "true") {
     rows = rows.filter((row) => row.is_vose);
@@ -196,6 +158,11 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
 export async function getFilmBySlug(slug: string): Promise<FilmApiResponse | null> {
   const supabase = createServerSupabaseClient();
   const today = getDateInTimezone(new Date(), MADRID_TIMEZONE);
+  const windowEnd = getDateInTimezone(
+    new Date(Date.now() + (SCRAPE_CONFIG.days - 1) * 24 * 60 * 60 * 1000),
+    MADRID_TIMEZONE
+  );
+  const freshnessThreshold = getShowtimeFreshnessThreshold();
 
   const { data: film, error: filmError } = await supabase
     .from("films")
@@ -213,6 +180,8 @@ export async function getFilmBySlug(slug: string): Promise<FilmApiResponse | nul
     )
     .eq("film_id", film.id)
     .gte("show_date", today)
+    .lte("show_date", windowEnd)
+    .gte("last_seen_at", freshnessThreshold)
     .order("show_date", { ascending: true })
     .order("show_time", { ascending: true });
 

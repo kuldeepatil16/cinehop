@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 
-import { FOOTER_COPY } from "@/lib/constants";
 import { ChainBadge } from "@/components/ChainBadge";
 import { useLanguage } from "@/components/LanguageProvider";
+import { FOOTER_COPY } from "@/lib/constants";
 
 export function SiteFooter() {
   const { language } = useLanguage();
   const copy =
     language === "es"
-      ? "CineHop Espana · Datos actualizados cada 2h · No afiliado a ninguna cadena"
+      ? "CineHop Espana · Datos actualizados dos veces al dia · No afiliado a ninguna cadena"
       : FOOTER_COPY;
 
   return (

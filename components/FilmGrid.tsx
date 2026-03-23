@@ -1,8 +1,8 @@
 "use client";
 
-import type { FilmCardData } from "@/lib/types";
 import { FilmCard } from "@/components/FilmCard";
 import { useLanguage } from "@/components/LanguageProvider";
+import type { FilmCardData } from "@/lib/types";
 
 interface FilmGridProps {
   films: FilmCardData[];
@@ -21,7 +21,7 @@ export function FilmGrid({ films, onOpen, selectedFilmId, hasActiveFilters }: Fi
         <p className="empty-state-hint">
           {hasActiveFilters
             ? t("adjust_filters")
-            : "No sessions scraped for this city / date yet. Data refreshes every 3h — check back soon or trigger a scrape from GitHub Actions."}
+            : "No live sessions found for this city and date yet. CineHop only shows recently scraped sessions for today and the next few days."}
         </p>
       </div>
     );

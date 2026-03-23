@@ -6,7 +6,7 @@ export const maxDuration = 10;
 export const dynamic = "force-dynamic";
 
 // A chain is considered "stale" if its most recent successful scrape is older than this.
-const CHAIN_STALE_THRESHOLD_MS = 9 * 60 * 60 * 1000; // 9h = 3 scrape cycles
+const CHAIN_STALE_THRESHOLD_MS = 30 * 60 * 60 * 1000; // 30h = twice-daily cadence plus slack
 
 export async function GET(request: Request): Promise<Response> {
   const authHeader = request.headers.get("authorization");
@@ -58,7 +58,7 @@ export async function GET(request: Request): Promise<Response> {
 
     return jsonResponse({
       status: overallStale ? "degraded" : "ok",
-      note: "Scrapers run via GitHub Actions every 3h (see .github/workflows/scrape.yml).",
+      note: "Scrapers run via GitHub Actions twice daily (see .github/workflows/scrape.yml).",
       chain_health: chainHealth,
       active_showtimes_today: activeTodayCount ?? 0,
       stale_threshold: staleThreshold,

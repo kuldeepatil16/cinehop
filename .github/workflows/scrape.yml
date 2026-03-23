@@ -2,27 +2,25 @@ name: Scrape Cinema Showtimes
 
 on:
   schedule:
-    # Every 3 hours during cinema hours (07:00–22:00 CET = 06:00–21:00 UTC)
-    - cron: '0 6,9,12,15,18,21 * * *'
+    # Twice daily at 07:00 and 19:00 UTC.
+    - cron: "0 7,19 * * *"
   workflow_dispatch:
     inputs:
       chain:
-        description: 'Which chain to scrape (leave empty for all)'
+        description: "Which chain to scrape (leave empty for all)"
         required: false
-        default: ''
+        default: ""
         type: choice
         options:
-          - ''
+          - ""
           - cinesa
           - yelmo
           - kinepolis
 
-# Shared step definition via YAML anchors
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
-  # ─── Cinesa ───────────────────────────────────────────────────────────────
   scrape-cinesa:
     if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'cinesa' }}
     runs-on: ubuntu-latest
@@ -32,8 +30,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - run: npm ci
 
@@ -64,7 +62,6 @@ jobs:
         run: |
           echo "::error::Cinesa scrape failed at $(date -u)"
 
-  # ─── Yelmo ────────────────────────────────────────────────────────────────
   scrape-yelmo:
     if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'yelmo' }}
     runs-on: ubuntu-latest
@@ -74,8 +71,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - run: npm ci
 
@@ -106,7 +103,6 @@ jobs:
         run: |
           echo "::error::Yelmo scrape failed at $(date -u)"
 
-  # ─── Kinepolis ────────────────────────────────────────────────────────────
   scrape-kinepolis:
     if: ${{ github.event.inputs.chain == '' || github.event.inputs.chain == 'kinepolis' }}
     runs-on: ubuntu-latest
@@ -116,8 +112,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - run: npm ci
 
@@ -141,7 +137,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-          KINEPOLIS_HEADFUL: '1'
+          KINEPOLIS_HEADFUL: "1"
         run: xvfb-run -a npm run scrape:kinepolis
 
       - name: Notify on failure

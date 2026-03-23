@@ -51,6 +51,8 @@ export const SCRAPE_CONFIG = {
   selectorTimeoutMs: 20_000
 } as const;
 
+export const SHOWTIME_FRESHNESS_HOURS = 24;
+
 export const USER_AGENTS: readonly string[] = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
@@ -138,4 +140,4 @@ export const FILTER_GROUPS = [
 ] as const;
 
 export const FOOTER_COPY =
-  "CineHop Spain · Data refreshed every 2h · Not affiliated with any cinema chain";
+  "CineHop Spain · Data refreshed twice daily · Not affiliated with any cinema chain";

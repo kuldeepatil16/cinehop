@@ -1,4 +1,4 @@
-import { MADRID_TIMEZONE, SCRAPE_CONFIG, SITE_URL } from "@/lib/constants";
+import { MADRID_TIMEZONE, SCRAPE_CONFIG, SHOWTIME_FRESHNESS_HOURS, SITE_URL } from "@/lib/constants";
 import type {
   Chain,
   FilmCardData,
@@ -56,6 +56,10 @@ export function isDateWithinWindow(date: string, days = SCRAPE_CONFIG.days): boo
   const start = getDateInTimezone(new Date(), MADRID_TIMEZONE);
   const end = getDateInTimezone(addDays(new Date(), days - 1), MADRID_TIMEZONE);
   return date >= start && date <= end;
+}
+
+export function getShowtimeFreshnessThreshold(hours = SHOWTIME_FRESHNESS_HOURS): string {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
 
 export function toCanonicalUrl(pathname: string): string {

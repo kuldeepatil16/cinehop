@@ -67,7 +67,7 @@ npm run scrape
 
 ### Included Vercel cron
 
-[vercel.json](/d:/Coding/cinehop/vercel.json) includes the requested 2-hour cron hitting `/api/cron/scrape`. That endpoint works in local and Playwright-capable runtimes, but Vercel Hobby serverless is not the reliable place to run Chromium-heavy scrapers in production.
+[vercel.json](/d:/Coding/cinehop/vercel.json) can hit `/api/cron/scrape`, but the production scraper cadence should be twice daily via GitHub Actions. That endpoint works in local and Playwright-capable runtimes, but Vercel Hobby serverless is not the reliable place to run Chromium-heavy scrapers in production.
 
 ### Railway-style alternative
 
