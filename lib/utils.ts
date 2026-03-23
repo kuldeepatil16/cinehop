@@ -1,4 +1,4 @@
-import { SITE_URL } from "@/lib/constants";
+import { MADRID_TIMEZONE, SCRAPE_CONFIG, SITE_URL } from "@/lib/constants";
 import type {
   Chain,
   FilmCardData,
@@ -20,19 +20,42 @@ export function formatSpanishDate(date: string): string {
 }
 
 export function resolveQueryDate(input?: string | null): string {
-  const today = new Date();
+  const today = getDateInTimezone(new Date(), MADRID_TIMEZONE);
 
   if (!input || input === "today") {
-    return today.toISOString().slice(0, 10);
+    return today;
   }
 
   if (input === "tomorrow") {
-    const next = new Date(today);
-    next.setDate(today.getDate() + 1);
-    return next.toISOString().slice(0, 10);
+    return getDateInTimezone(addDays(new Date(), 1), MADRID_TIMEZONE);
   }
 
-  return input;
+  return isDateWithinWindow(input) ? input : today;
+}
+
+export function getDateInTimezone(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+export function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function isDateWithinWindow(date: string, days = SCRAPE_CONFIG.days): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return false;
+  }
+
+  const start = getDateInTimezone(new Date(), MADRID_TIMEZONE);
+  const end = getDateInTimezone(addDays(new Date(), days - 1), MADRID_TIMEZONE);
+  return date >= start && date <= end;
 }
 
 export function toCanonicalUrl(pathname: string): string {

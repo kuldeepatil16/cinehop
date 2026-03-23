@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react";
 import { Bebas_Neue, DM_Mono, DM_Sans } from "next/font/google";
 
 import "@/app/globals.css";
 import { HOMEPAGE_META, SITE_NAME } from "@/lib/constants";
 import { CookieBanner } from "@/components/CookieBanner";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { VercelAnalytics } from "@/components/VercelAnalytics";
 
 const bebasNeue = Bebas_Neue({
   subsets: ["latin"],
@@ -31,7 +31,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: HOMEPAGE_META.title,
   description: HOMEPAGE_META.description,
-  applicationName: SITE_NAME
+  applicationName: SITE_NAME,
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -43,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           {children}
           <CookieBanner />
-          {shouldLoadAnalytics ? <Analytics /> : null}
+          {shouldLoadAnalytics ? <VercelAnalytics /> : null}
         </LanguageProvider>
       </body>
     </html>

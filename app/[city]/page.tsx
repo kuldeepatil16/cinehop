@@ -58,7 +58,7 @@ export default async function CityPage({ params }: CityPageProps) {
   const city = params.city;
   const label = CITY_LABELS[city];
 
-  const initialData = await getFilmsForDate({ date: "today", city, vose: "true" });
+  const initialData = await getFilmsForDate({ date: "today", city });
 
   // ItemList JSON-LD: helps Google understand what films are showing in this city
   const jsonLd = {

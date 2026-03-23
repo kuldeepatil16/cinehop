@@ -2,6 +2,15 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config, { dev }) => {
+    if (dev) {
+      // Dev-only cache corruption is causing missing generated chunks on this stack.
+      // Keep production caching intact and trade a slower dev compile for stability.
+      config.cache = false;
+    }
+
+    return config;
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

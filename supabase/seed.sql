@@ -36,6 +36,62 @@ ON CONFLICT (slug) DO UPDATE SET
   lng = EXCLUDED.lng,
   booking_base_url = EXCLUDED.booking_base_url;
 
+-- Bring the seed in line with the multi-city schema so all supported city pages
+-- have demo cinemas and scraper upserts can resolve their cinema_slug values.
+UPDATE cinemas
+SET city = 'madrid'
+WHERE slug IN (
+  'cinesa-la-gavia',
+  'cinesa-manoteras',
+  'cinesa-mendez-alvaro',
+  'cinesa-nassica',
+  'cinesa-parquesur',
+  'cinesa-principe-pio',
+  'cinesa-proyecciones',
+  'cinesa-las-rosas',
+  'cinesa-la-moraleja',
+  'yelmo-ideal',
+  'yelmo-islazul',
+  'yelmo-la-vaguada',
+  'yelmo-plenilunio',
+  'yelmo-planetocio',
+  'yelmo-rivas-h2o',
+  'yelmo-tres-aguas',
+  'yelmo-plaza-norte',
+  'kinepolis-madrid'
+);
+
+INSERT INTO cinemas (id, chain, city, name, slug, address, zone, lat, lng, booking_base_url)
+VALUES
+  ('11111111-1111-1111-1111-111111111201','cinesa','barcelona','Cinesa Diagonal','cinesa-diagonal','Carrer de Santa Fe de Nou Mexic, Barcelona',NULL,41.396388,2.136407,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111202','cinesa','barcelona','Cinesa Diagonal Mar','cinesa-diagonal-mar','Avinguda Diagonal, 3, Barcelona',NULL,41.412974,2.216343,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111203','cinesa','barcelona','Cinesa Barnasud','cinesa-barnasud','Carrer del Progres, 69, Gava',NULL,41.296018,2.007690,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111204','cinesa','valencia','Cinesa Bonaire','cinesa-bonaire','Autovia del Este, Km 345, Aldaia',NULL,39.471327,-0.489360,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111205','cinesa','sevilla','Cinesa Camas','cinesa-camas','Camas Aljarafe, Sevilla',NULL,37.392288,-6.029628,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111206','cinesa','bilbao','Cinesa Zubiarte','cinesa-zubiarte','Centro comercial Zubiarte, Bilbao',NULL,43.269500,-2.945100,'https://www.cinesa.es/'),
+  ('11111111-1111-1111-1111-111111111207','cinesa','bilbao','Cinesa Max Ocio','cinesa-max-ocio','Centro comercial Max Ocio, Barakaldo',NULL,43.286500,-2.997500,'https://www.cinesa.es/'),
+  ('22222222-2222-2222-2222-222222222209','yelmo','madrid','Yelmo Palafox Luxury','yelmo-palafox-luxury','Calle de Luchana, Madrid','centro',40.430800,-3.700700,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222210','yelmo','madrid','Yelmo Premium Parque Corredor','yelmo-parque-corredor','Parque Corredor, Torrejon de Ardoz','este',40.459400,-3.469700,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222301','yelmo','barcelona','Yelmo Premium Castelldefels','yelmo-castelldefels',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222302','yelmo','barcelona','Yelmo Abrera','yelmo-abrera',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222303','yelmo','barcelona','Yelmo Baricentro','yelmo-baricentro',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222304','yelmo','barcelona','Yelmo Westfield La Maquinista','yelmo-la-maquinista',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222305','yelmo','barcelona','Yelmo Premium Sant Cugat','yelmo-sant-cugat',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222306','yelmo','valencia','Yelmo Mercado de Campanar','yelmo-campanar',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222307','yelmo','valencia','Yelmo Vidanova Parc','yelmo-vidanova-parc',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('22222222-2222-2222-2222-222222222308','yelmo','sevilla','Yelmo Premium Lagoh','yelmo-lagoh',NULL,NULL,NULL,NULL,'https://yelmocines.es/'),
+  ('33333333-3333-3333-3333-333333333302','kinepolis','barcelona','Kinepolis Barcelona Splau','kinepolis-barcelona-splau',NULL,NULL,NULL,NULL,'https://kinepolis.es/'),
+  ('33333333-3333-3333-3333-333333333303','kinepolis','valencia','Kinepolis Valencia','kinepolis-valencia',NULL,NULL,NULL,NULL,'https://kinepolis.es/')
+ON CONFLICT (slug) DO UPDATE SET
+  chain = EXCLUDED.chain,
+  city = EXCLUDED.city,
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  zone = EXCLUDED.zone,
+  lat = EXCLUDED.lat,
+  lng = EXCLUDED.lng,
+  booking_base_url = EXCLUDED.booking_base_url;
+
 -- Clean up stale showtimes (>7 days old) before re-seeding
 DELETE FROM showtimes WHERE show_date < current_date - INTERVAL '7 days';
 -- Remove old demo films that no longer belong in the catalog
@@ -95,10 +151,20 @@ JOIN cinemas c ON c.slug IN (
   'cinesa-proyecciones',
   'yelmo-ideal',
   'yelmo-plenilunio',
-  'kinepolis-madrid'
+  'kinepolis-madrid',
+  'cinesa-diagonal',
+  'yelmo-baricentro',
+  'kinepolis-barcelona-splau',
+  'cinesa-bonaire',
+  'yelmo-campanar',
+  'kinepolis-valencia',
+  'cinesa-camas',
+  'yelmo-lagoh',
+  'cinesa-zubiarte'
 )
 WHERE
-  -- Reduce the Cartesian product to ~25-30 rows deterministically:
+  -- Reduce the Cartesian product to a demo-sized set while preserving at least
+  -- some seeded data in every supported city.
   get_byte(decode(substring(md5(f.slug || c.slug || dt.d::text), 1, 2), 'hex'), 0) % 3 = 0
 ON CONFLICT (cinema_id, film_id, show_date, show_time, format) DO UPDATE SET
   price_eur = EXCLUDED.price_eur,

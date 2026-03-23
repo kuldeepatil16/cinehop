@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { createServiceSupabaseClient } from "@/lib/supabase";
+import { KNOWN_CINEMAS } from "@/lib/cinema-catalog";
 import type {
   Chain,
   ChainScrapePayload,
@@ -41,6 +42,17 @@ function loadLocalEnv(): void {
 }
 
 loadLocalEnv();
+
+async function ensureKnownCinemas(): Promise<void> {
+  const supabase = createServiceSupabaseClient();
+  const { error } = await supabase
+    .from("cinemas")
+    .upsert(KNOWN_CINEMAS, { onConflict: "slug" });
+
+  if (error) {
+    throw new Error(`Unable to upsert cinema catalog: ${error.message}`);
+  }
+}
 
 async function logScrapeRun(result: ScrapeResult): Promise<void> {
   try {
@@ -148,6 +160,8 @@ async function runChain(
   try {
     const payload = await chainRunner();
     const supabase = createServiceSupabaseClient();
+
+    await ensureKnownCinemas();
 
     const { data: cinemas, error: cinemasError } = await supabase.from("cinemas").select("id, slug, name");
     if (cinemasError || !cinemas) {

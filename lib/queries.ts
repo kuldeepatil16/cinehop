@@ -1,4 +1,4 @@
-import { DEFAULT_CACHE_CONTROL } from "@/lib/constants";
+import { DEFAULT_CACHE_CONTROL, MADRID_TIMEZONE, SCRAPE_CONFIG } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import type {
   Cinema,
@@ -9,7 +9,13 @@ import type {
   FilmWithShowtimes,
   Showtime
 } from "@/lib/types";
-import { buildFilmCardData, groupFilmDetail, resolveQueryDate } from "@/lib/utils";
+import {
+  buildFilmCardData,
+  getDateInTimezone,
+  groupFilmDetail,
+  isDateWithinWindow,
+  resolveQueryDate
+} from "@/lib/utils";
 
 type JoinedShowtimeRow = Showtime & {
   films: Film | Film[] | null;
@@ -66,7 +72,6 @@ function buildShowtimesQuery(
     .eq("show_date", date)
     .order("show_time", { ascending: true });
 
-  // Push high-selectivity filters to the DB — avoids loading thousands of rows into Node
   if (params.city) query = query.eq("cinemas.city", params.city);
   if (!Array.isArray(params.chain) && params.chain) query = query.eq("cinemas.chain", params.chain);
   if (params.zone) query = query.eq("cinemas.zone", params.zone);
@@ -89,25 +94,34 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
 
   let rows = (data ?? []) as unknown as JoinedShowtimeRow[];
 
-  // Fallback: if no data for the requested date, show the most recent available date.
-  // Apply the same city filter so Barcelona users don't see Madrid fallback data.
-  if (rows.length === 0 && (!params.date || params.date === "today" || params.date === "tomorrow")) {
-    // Narrow fallback to the same city if one was requested.
-    // Must reassign — Supabase builder is immutable; chained calls return new objects.
-    let latestQuery = supabase
+  // Fallback only within the active 2-4 day booking window. Never jump back
+  // to historical data just to avoid an empty state.
+  if (
+    rows.length === 0 &&
+    (!params.date || params.date === "today" || params.date === "tomorrow" || isDateWithinWindow(date))
+  ) {
+    const windowStart = getDateInTimezone(new Date(), MADRID_TIMEZONE);
+    const windowEnd = getDateInTimezone(
+      new Date(Date.now() + (SCRAPE_CONFIG.days - 1) * 24 * 60 * 60 * 1000),
+      MADRID_TIMEZONE
+    );
+
+    let fallbackQuery = supabase
       .from("showtimes")
       .select("show_date, cinemas!inner(city)")
-      .order("show_date", { ascending: false })
+      .gte("show_date", windowStart)
+      .lte("show_date", windowEnd)
+      .order("show_date", { ascending: true })
       .limit(1);
 
     if (params.city) {
-      latestQuery = latestQuery.eq("cinemas.city", params.city);
+      fallbackQuery = fallbackQuery.eq("cinemas.city", params.city);
     }
 
-    const { data: latest } = await latestQuery.maybeSingle();
+    const { data: fallbackTarget } = await fallbackQuery.maybeSingle();
 
-    if (latest?.show_date) {
-      date = latest.show_date as string;
+    if (fallbackTarget?.show_date && isDateWithinWindow(fallbackTarget.show_date as string)) {
+      date = fallbackTarget.show_date as string;
       const { data: fallbackData, error: fallbackError } = await buildShowtimesQuery(
         supabase,
         date,
@@ -119,9 +133,6 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
     }
   }
 
-  // Secondary in-memory filters for fields that can't be pushed to PostgREST
-  // (price, free-text search). vose/format/language are already filtered at DB level
-  // but we keep them here as a safety net in case the embedded filter behaves differently.
   if (params.vose === "true") {
     rows = rows.filter((row) => row.is_vose);
   }
@@ -184,7 +195,7 @@ export async function getFilmsForDate(params: FilmsApiParams = {}): Promise<Film
 
 export async function getFilmBySlug(slug: string): Promise<FilmApiResponse | null> {
   const supabase = createServerSupabaseClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getDateInTimezone(new Date(), MADRID_TIMEZONE);
 
   const { data: film, error: filmError } = await supabase
     .from("films")

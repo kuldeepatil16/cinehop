@@ -1,6 +1,8 @@
 # CineHop
 
-CineHop is a Madrid cinema showtime aggregator built for the pain points surfaced in the research: VOSE discovery is front and center, each session links directly into the chain booking flow, and prices stay visible before users click away to Cinesa, Yelmo, or Kinepolis.
+CineHop is a Madrid cinema showtime aggregator built for the pain points surfaced in the research: VOSE discovery is front and center, each session links directly into the chain booking flow, and prices stay visible before users click away to Cinesa, Yelmo, or Kinepolis
+The current app is Spain-focused (Madrid, Barcelona, etc.) and the screenshots show BookMyShow (India) we want the same design pattern - movie cards with posters, ratings, and showtimes listed below or alongside. Always check https://in.bookmyshow.com/explore/home/pune, the internet and this website on how we can make this cinehop website better.
+The real question is whether we're capturing all available movies across all cinemas and days, or if we're limited by the current cinema-by-cinema iteration approach. Looking at how BookMyShow structures it—showing all movies first, then revealing which cinemas have them—I think what's needed is ensuring the scrapers comprehensively cover all cinemas and that the data aggregation surfaces every movie that's actually playing.
 
 ## Stack
 
@@ -16,7 +18,7 @@ CineHop is a Madrid cinema showtime aggregator built for the pain points surface
 1. Install Node.js 20+.
 2. Copy `.env.local.example` to `.env.local`.
 3. Create a Supabase project.
-4. Run the SQL in [supabase/migrations/001_init.sql](/d:/Coding/cinehop/supabase/migrations/001_init.sql) in the Supabase SQL editor.
+4. Run every SQL file in `supabase/migrations/` in order: `001_init.sql`, `002_staleness.sql`, `003_city_support.sql`, `004_multi_city_cinemas.sql`, `005_staleness_24h.sql`.
 5. Run the SQL in [supabase/seed.sql](/d:/Coding/cinehop/supabase/seed.sql) in the same editor.
 6. Fill `.env.local` with your Supabase URL, anon key, service role key, OMDb key, and a random `CRON_SECRET`.
 7. Install dependencies with `npm install`.
@@ -29,7 +31,7 @@ The seeded films and showtimes make the UI work immediately, even before you run
 
 1. Create a new Supabase project on the free tier.
 2. Open the SQL editor.
-3. Run [supabase/migrations/001_init.sql](/d:/Coding/cinehop/supabase/migrations/001_init.sql).
+3. Run every file in `supabase/migrations/` in order.
 4. Run [supabase/seed.sql](/d:/Coding/cinehop/supabase/seed.sql).
 5. Copy the project URL, anon key, and service role key into `.env.local`.
 
@@ -116,3 +118,8 @@ npm run scrape
 - The project intentionally removed TMDB usage to stay on a free metadata stack.
 - Cinesa currently exposes useful browser-session JSON responses, Yelmo renders bookable links in the DOM, and Kinepolis is the most bot-sensitive target, so scraper failures are logged per-chain and do not stop the other chains.
 - Next.js 14 was kept because it was a hard requirement. Current `npm audit` advisories recommend moving beyond 14.x for full upstream remediation, but this repo stays on 14.x to match the requested framework version.
+
+
+## Find Values
+Array.from(document.querySelectorAll('#ddlCinema option')).map(o => ({ value: o.value, label: o.textContent.trim() }))
+ The city-cinema dropdown values (e.g. "castelldefels", "abrera") are best guesses based on their URL/name pattern. The scraper logs the actual dropdown values it finds, so when the GitHub Actions runs you'll see in the logs whether the values match. If they don't, the log will print something like [yelmo] Dropdown value "castelldefels" not found — skipping. At that point you'd correct the values.
